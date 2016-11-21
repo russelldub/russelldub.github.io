@@ -1,0 +1,10 @@
+---
+layout: post
+title:  "GLSL Shader in HTML"
+date:   2016-11-20 21:51:34
+categories: experiments
+---
+Took GLSL shader code from [shadertoy] and put it in my own html canvas element based on some other tutorials.
+{% include flame_shader.html %}
+
+[shadertoy]:https://www.shadertoy.com/view/MdX3zr
