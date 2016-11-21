@@ -11,8 +11,23 @@ body {
 .content {
     margin: 0 auto;
     width: 100%;
-    max-width: 960px;
-    padding: 0 15px;
+    height: 100%;
+}
+
+.content span {
+   position: absolute;
+   bottom: 0;
+   right: 0;
+}
+
+a:link {
+    color: white;
+}
+a:hover {
+    color: white;
+}
+a:visited {
+    color: gray;
 }
 
 h1 {
@@ -62,7 +77,7 @@ p {
 
 @media (max-width: 767px) {
     .fullscreen-bg {
-        background: url('../flame.png') center center / cover no-repeat;
+        background: url('../assets/flame.png') center center / cover no-repeat;
     }
 
     .fullscreen-bg__video {
