@@ -1,0 +1,132 @@
+---
+layout: post
+title:  "p5.js moire circle"
+date:   2016-11-21 23:43:00
+categories: experiments
+custom_js:
+  - p5/p5.min.js
+  - p5/addons/p5.dom.js
+---
+
+<script type="text/javascript">
+
+var n_lines = 80;
+var theta1_start = [];
+var theta1_end = [];
+var theta2_start = [];
+var theta2_end = [];
+var theta_level_start = [];
+var theta_level_end = [];
+var theta_angle_start = [];
+var theta_angle_end = [];
+var d;
+var total_frames = 60; 
+var cycle_frame = 0; 
+var oddeven = 0;
+var lines_slider;
+
+function setup() {
+  p5c = createCanvas(400, 400);
+  p5c.parent("p5");
+
+  lines_slider=createSlider(10,120,80);
+  lines_slider.parent("slider");
+  lines_slider.style.right="0px";
+  n_lines = lines_slider.value();
+}
+
+function ease(x) {
+    x1 = 0; x2 = 0.2; x3 = 0.8; x4 = 1;
+    y1 = 0; y2 = 0.1; y3 = 0.9; y4 = 1;
+    t = 0;
+    x1 = 0;
+    while(x1 < x) { 
+      x1 = bezierPoint(x1, x2, x3, x4, t);
+      t+=0.001;
+    }
+    y = bezierPoint(y1, y2, y3, y4, t);
+    return y;
+}
+
+function draw() {
+  stroke(0);
+  background(255);
+
+  cycle_frame += 1;
+  if(cycle_frame > total_frames+10) {
+    cycle_frame = 0;
+    oddeven += 1;
+  }
+  setThetas();
+
+  translate(width/2,height/2);
+  for(var i = 0; i < n_lines; ++i)
+  {
+    var t1s = theta1_start[i];
+    var t2s = theta2_start[i];
+    var t1e = theta1_end[i];
+    var t2e = theta2_end[i];
+
+    var ts = lerp(t1s,t2s,ease(min(cycle_frame/total_frames,1)));
+    var te = lerp(t1e,t2e,ease(min(cycle_frame/total_frames,1)));
+    var x1 = d/2*cos(ts);
+    var x2 = d/2*cos(te);
+    var y1 = d/2*sin(ts);
+    var y2 = d/2*sin(te);
+
+    line(x1,y1,x2,y2);
+  }
+}
+
+function setThetas() {
+  theta1_start = []
+  theta2_start = []
+  theta1_end = []
+  theta2_end= []
+  theta_angle_start = []
+  theta_level_start = []
+  theta_level_end = []
+  theta_angle_end = []
+
+  n_lines = lines_slider.value();
+
+  d = height*0.75;
+  var dx = d/(n_lines+1);
+
+  for(var i = 0; i < n_lines; ++i)
+  {
+    ly = d/2 - dx*(i+1);
+    angle = asin(ly/(d/2));
+    theta_level_start.push(angle);
+    theta_level_end.push(angle + 2*(PI/2-angle));
+  }
+
+  for(var i = 0; i < n_lines; ++i)
+  {
+    ly_orig = d/2 - dx*(i+1);
+    angle = asin(ly_orig/(d/2));
+    angle2 = 2*(PI/2-angle);
+    theta_angle_start.push(-PI/2);
+    theta_angle_end.push(angle2 - PI/2);
+  }
+
+  for(var i = 0; i < n_lines; ++i)
+  {
+    if(oddeven % 2 == 1) {
+      theta1_start[i] = theta_angle_start[i];
+      theta1_end[i] = theta_angle_end[i];
+      theta2_start[i] = theta_level_start[i]-PI;
+      theta2_end[i] = theta_level_end[i]-PI;
+    } else if (oddeven % 2 == 0) {
+      theta1_start[i] = theta_level_start[i];
+      theta1_end[i] = theta_level_end[i];
+      theta2_start[i] = theta_angle_start[i];
+      theta2_end[i] = theta_angle_end[i];
+    }
+  }
+}
+
+</script>
+
+<div id="p5"><span id="slider"></span># of lines</div>
+<div id="text">inspired by <a href="http://bigblueboo.tumblr.com/post/103893207941/moire-shell">big blue boo</a></div>
