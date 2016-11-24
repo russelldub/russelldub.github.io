@@ -22,12 +22,19 @@ var palette_JSON = [];
 
 var grid_size = 100;
 
-function parseColours(response) {
-  console.log("Parsing Colours!");
-  console.log(response.length);
-  console.log(response[0]['colors']);
-  palette_JSON = response;
+//Colour Lovers doesn't have an https end point
+//function parseColours(response) {
+//  console.log("Parsing Colours!");
+//  console.log(response.length);
+//  console.log(response[0]['colors']);
+//  palette_JSON = response;
+//}
+
+function preload() {
+  //loadJSON loads this file as an object with keys 0-39 for some reason
+  palette_JSON=loadJSON("/assets/colour_lovers_top40.json");
 }
+
 
 function setup() {
   p5c = createCanvas(800, 600);
@@ -40,8 +47,9 @@ function draw() {
   if(palette_JSON.length === 0) {
     colors = colors_pre;
   } else {
-    idxp = int(random(palette_JSON.length))
-    palette = palette_JSON[idxp];
+    palette_keys=Object.keys(palette_JSON)
+    idxp = int(random(palette_keys.length))
+    palette = palette_JSON[palette_keys[idxp]];
     colors = [];
     for(var i = 0;  i < palette["colors"].length; ++i) {
       colors.push("#"+ palette['colors'][i]);
@@ -119,8 +127,10 @@ function keyTyped() {
 }
 </script>
 
+<!--
 <script type="application/javascript"
-        src="https://www.colourlovers.com/api/palettes/top?format=json&numResults=40&jsonCallback=parseColours"> </script>
+	src="https://www.colourlovers.com/api/palettes/top?format=json&numResults=40&jsonCallback=parseColours"> </script>
+-->
 
 <div id="p5"></div>
 <div id="text">click to regen</br>type capital "s" to save</br>inspired by <a href="http://low-sugar-eye-candy.tumblr.com/post/153526282667/draw-two-random-curves-rotate-the-paper-repeat">low sugar eye candy</a></div>
