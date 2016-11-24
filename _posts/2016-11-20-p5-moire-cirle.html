@@ -24,6 +24,8 @@ var total_frames = 60;
 var cycle_frame = 0; 
 var oddeven = 0;
 var lines_slider;
+var bgColor;
+var fgColor;
 
 function setup() {
   p5c = createCanvas(400, 400);
@@ -33,6 +35,10 @@ function setup() {
   lines_slider.parent("slider");
   lines_slider.style.right="0px";
   n_lines = lines_slider.value();
+
+  var bodyStyle = window.getComputedStyle(document.body, null);
+  bgColor = bodyStyle.backgroundColor;
+  fgColor = bodyStyle.color;
 }
 
 function ease(x) {
@@ -49,8 +55,8 @@ function ease(x) {
 }
 
 function draw() {
-  stroke(0);
-  background(255);
+  stroke(fgColor);
+  background(bgColor);
 
   cycle_frame += 1;
   if(cycle_frame > total_frames+10) {
@@ -128,5 +134,6 @@ function setThetas() {
 
 </script>
 
-<div id="p5"><span id="slider"></span># of lines</div>
+<div id="p5"></div><div><span id="slider"></span># of lines</div>
 <div id="text">inspired by <a href="http://bigblueboo.tumblr.com/post/103893207941/moire-shell">big blue boo</a></div>
+<div id="update"><small>update 2016-11-24: change colors to new theme</small></div>
