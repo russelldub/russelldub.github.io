@@ -1,0 +1,127 @@
+---
+layout: post
+title:  "p5.js symmetry sketcher grid (w/ palettes)"
+date:   2016-11-23 23:23:00
+categories: experiments
+custom_js:
+  - p5/p5.min.js
+  - p5/addons/p5.dom.js
+---
+
+<script type="text/javascript">
+
+var colors = [];
+//https://coolors.co/3ab1a2-c45353-254430-b6c567-70958f
+var colors_pre = ['rgb(58, 177, 162)',
+          'rgb(196, 83, 83)',
+          'rgb(37, 68, 48)',
+          'rgb(182, 197, 103)',
+          'rgb(112, 149, 143)'];
+
+var palette_JSON = [];
+
+var grid_size = 100;
+
+function parseColours(response) {
+  console.log("Parsing Colours!");
+  console.log(response.length);
+  console.log(response[0]['colors']);
+  palette_JSON = response;
+}
+
+function setup() {
+  p5c = createCanvas(800, 600);
+  p5c.parent("p5");
+  noLoop();
+
+}
+
+function draw() {
+  if(palette_JSON.length === 0) {
+    colors = colors_pre;
+  } else {
+    idxp = int(random(palette_JSON.length))
+    palette = palette_JSON[idxp];
+    colors = [];
+    for(var i = 0;  i < palette["colors"].length; ++i) {
+      colors.push("#"+ palette['colors'][i]);
+    }
+    var palette_link_div=select("#colourloverlink");
+    palette_link = palette_JSON[idxp]['url'];
+    palette_link_div.html("<a href=\"" + palette_link + "\">\"" + palette_JSON[idxp]['title'] + "\" palette</a> from <a href=\"http://www.colourlovers.com/\">colour lovers</a>");
+    
+  }
+
+  background(255);
+  for(var ix = 0; ix < floor(width/grid_size); ++ix) {
+    for(var iy = 0; iy < floor(height/grid_size); ++iy) {
+
+      push();
+      translate(grid_size*ix+grid_size/2,grid_size*iy+grid_size/2);
+       pts1 = randomBezier();
+       pts2 = randomBezier();
+       symm = int(random(7,14));
+       theta = TWO_PI/symm;
+       for( var i = 1; i < symm; ++i)
+       {
+         rotate(theta);
+         randomBezier(pts1);
+         randomBezier(pts2);
+       }
+      pop();
+    }
+  }
+}
+
+function randomBezier(pts) {
+   noFill();
+   if(!pts) {
+     x1 = random(-grid_size/2,grid_size/2);
+     x2 = random(-grid_size/2,grid_size/2);
+     x3 = random(-grid_size/2,grid_size/2);
+     x4 = random(-grid_size/2,grid_size/2);
+     y1 = random(-grid_size/2,grid_size/2);
+     y2 = random(-grid_size/2,grid_size/2);
+     y3 = random(-grid_size/2,grid_size/2);
+     y4 = random(-grid_size/2,grid_size/2);
+     idx = int(random(colors.length));
+     c = colors[idx];
+   } else { 
+     x1 = pts[0];
+     y1 = pts[1];
+     x2 = pts[2];
+     y2 = pts[3];
+     x3 = pts[4];
+     y3 = pts[5];
+     x4 = pts[6];
+     y4 = pts[7];
+     c = pts[8];
+   }
+   stroke(c);
+   bezier(x1, y1, x2, y2, x3, y3, x4, y4);
+   return [x1,y1,x2,y2,x3,y3,x4,y4,c];
+}
+
+function mouseClicked() {
+   if(mouseX > 0
+      && mouseX < width
+      && mouseY > 0
+      &&mouseY<height){
+     draw();
+   }
+}
+
+function keyTyped() {
+  if(key === "S") {
+    saveCanvas("s"+int(random(9999)),"png");
+  }
+
+}
+</script>
+
+<script type="application/javascript"
+        src="http://www.colourlovers.com/api/palettes/top?format=json&numResults=40&jsonCallback=parseColours"> </script>
+
+<div id="p5"></div>
+<div id="text">click to regen</br>type capital "s" to save</br>inspired by <a href="http://low-sugar-eye-candy.tumblr.com/post/153526282667/draw-two-random-curves-rotate-the-paper-repeat">low sugar eye candy</a></div>
+<div id="colourloverlink"></div>
