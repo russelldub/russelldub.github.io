@@ -1,0 +1,85 @@
+---
+layout: post
+title:  "p5.js symmetry sketcher"
+date:   2016-11-23 20:23:00
+categories: experiments
+custom_js:
+  - p5/p5.min.js
+  - p5/addons/p5.dom.js
+---
+
+<script type="text/javascript">
+
+//https://coolors.co/3ab1a2-c45353-254430-b6c567-70958f
+var colors = [[58, 177, 162],
+          [196, 83, 83],
+          [37, 68, 48],
+          [182, 197, 103],
+          [112, 149, 143]];
+
+function setup() {
+  p5c = createCanvas(400, 400);
+  p5c.parent("p5");
+  noLoop();
+}
+
+function draw() {
+  push();
+  translate(width/2,height/2);
+   background(255);
+   pts1 = randomBezier();
+   pts2 = randomBezier();
+   symm = int(random(7,14));
+   theta = TWO_PI/symm;
+   for( var i = 1; i < symm; ++i)
+   {
+     rotate(theta);
+     randomBezier(pts1);
+     randomBezier(pts2);
+   }
+  pop();
+}
+
+function randomBezier(pts) {
+   noFill();
+   if(!pts) {
+     x1 = random(-width/2,width/2);
+     x2 = random(-width/2,width/2);
+     x3 = random(-width/2,width/2);
+     x4 = random(-width/2,width/2);
+     y1 = random(-height/2,height/2);
+     y2 = random(-height/2,height/2);
+     y3 = random(-height/2,height/2);
+     y4 = random(-height/2,height/2);
+     idx = int(random(colors.length));
+     c = colors[idx];
+   } else { 
+     x1 = pts[0];
+     y1 = pts[1];
+     x2 = pts[2];
+     y2 = pts[3];
+     x3 = pts[4];
+     y3 = pts[5];
+     x4 = pts[6];
+     y4 = pts[7];
+     c = pts[8];
+   }
+   stroke(c[0],c[1],c[2]);
+   bezier(x1, y1, x2, y2, x3, y3, x4, y4);
+   return [x1,y1,x2,y2,x3,y3,x4,y4,c];
+}
+
+function mousePressed() {
+   draw();
+}
+
+function keyTyped() {
+  if(key === "S") {
+    saveCanvas("s"+int(random(9999)),"png");
+  }
+
+}
+</script>
+
+<div id="p5"></div>
+<div id="text">click to regen</br>type capital "s" to save</br>inspired by <a href="http://low-sugar-eye-candy.tumblr.com/post/153526282667/draw-two-random-curves-rotate-the-paper-repeat">low sugar eye candy</a></div>
