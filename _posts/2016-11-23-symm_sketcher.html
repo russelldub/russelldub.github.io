@@ -70,7 +70,12 @@ function randomBezier(pts) {
 }
 
 function mousePressed() {
-   draw();
+   if(mouseX > 0
+      && mouseX < width
+      && mouseY > 0
+      &&mouseY<height){
+     draw();
+   }
 }
 
 function keyTyped() {
