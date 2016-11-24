@@ -54,13 +54,15 @@ function draw() {
     for(var i = 0;  i < palette["colors"].length; ++i) {
       colors.push("#"+ palette['colors'][i]);
     }
+    idx = int(random(colors.length));
+    c = colors.pop(idx);
+    background(c);
     var palette_link_div=select("#colourloverlink");
     palette_link = palette_JSON[idxp]['url'];
     palette_link_div.html("<a href=\"" + palette_link + "\">\"" + palette_JSON[idxp]['title'] + "\" palette</a> from <a href=\"http://www.colourlovers.com/\">colour lovers</a>");
     
   }
 
-  background(255);
   for(var ix = 0; ix < floor(width/grid_size); ++ix) {
     for(var iy = 0; iy < floor(height/grid_size); ++iy) {
 
@@ -135,3 +137,4 @@ function keyTyped() {
 <div id="p5"></div>
 <div id="text">click to regen</br>type capital "s" to save</br>inspired by <a href="http://low-sugar-eye-candy.tumblr.com/post/153526282667/draw-two-random-curves-rotate-the-paper-repeat">low sugar eye candy</a></div>
 <div id="colourloverlink"></div>
+<div id="updates"><small>update 2016-11-14: add background color</small></div>
