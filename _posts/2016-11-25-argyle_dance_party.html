@@ -1,0 +1,191 @@
+---
+layout: post
+title:  "argyle dance party"
+date:   2016-11-25 15:32:00
+categories: experiments
+custom_js:
+  - p5/p5.min.js
+  - p5/addons/p5.dom.js
+---
+
+<script type="text/javascript">
+
+var colors;
+var bgc;
+//https://coolors.co/3ab1a2-c45353-254430-b6c567-70958f
+var colors_pre = ['rgb(58, 177, 162)',
+          'rgb(196, 83, 83)',
+          'rgb(37, 68, 48)',
+          'rgb(182, 197, 103)',
+          'rgb(112, 149, 143)'];
+
+var palette_JSON = [];
+
+var p5c;
+var running = true;
+var grid_size = 40;
+var grid_slider;
+var frameCountLocal = 1;
+var framesPerColor = 10;
+var flipFrame = framesPerColor;
+
+
+//Colour Lovers doesn't have an https end point
+//function parseColours(response) {
+//  console.log("Parsing Colours!");
+//  console.log(response.length);
+//  console.log(response[0]['colors']);
+//  palette_JSON = response;
+//}
+
+function preload() {
+  //loadJSON loads this file as an object with keys 0-39 for some reason
+  palette_JSON=loadJSON("/assets/colour_lovers_top40.json");
+  grid_slider = createSlider(10,250,grid_size);
+  grid_slider.parent("grid_slider");
+}
+
+
+function setup() {
+  p5c = createCanvas(800, 600, P2D);
+  p5c.parent("p5");
+  getColors();
+  clockTime = 0;
+  frameRate(4);
+}
+
+function ortho_box(i,j) {
+  push();
+  translate((i)*grid_size,(j)*grid_size);
+  rotate(PI/4);
+
+  var idxs = [];
+  for(var i = 0; i < colors.length; ++i) { idxs.push(i); }
+  var idx = int(random(idxs.length));
+  var c = colors[idxs[idx]];
+  idxs.splice(idx,1);
+  var idx_stroke = int(random(idxs.length));
+  var c_stroke = colors[idxs[idx_stroke]];
+
+
+
+  fill(c);
+  stroke(c_stroke);
+
+  rect(0,0,
+       grid_size,grid_size)
+  pop();
+}
+
+function draw() {
+  grid_size = height/int(height/grid_slider.value());
+  frameCountLocal += 1;
+  if(frameCountLocal === flipFrame) {
+    getColors();
+    flipFrame += framesPerColor;
+  }
+
+  push();
+  translate(grid_size/2,-grid_size/4);
+  background(bgc);
+
+
+  points = []
+  for(var ix = 0; ix < ceil(width/grid_size); ++ix) {
+    for(var iy = 0; iy < ceil(height/grid_size); ++iy) {
+        points.push([ix,iy]);
+    }
+  }
+
+  while(points.length > 0) {
+     var idx = int(random(points.length));
+     var p = points[idx];
+     ortho_box(p[0],p[1]);
+     points.splice(idx,1);
+  }
+  pop();
+}
+
+function getColors() {
+  if(palette_JSON.length === 0) {
+    colors = colors_pre;
+  } else {
+    palette_keys=Object.keys(palette_JSON)
+    idxp = int(random(palette_keys.length))
+    palette = palette_JSON[palette_keys[idxp]];
+    colors = [];
+    for(var i = 0;  i < palette["colors"].length; ++i) {
+      colors.push("#"+ palette['colors'][i]);
+    }
+    idx = int(random(colors.length));
+    c = colors.pop(idx);
+    //background(c);
+    var palette_link_div=select("#colourloverlink");
+    palette_link = palette_JSON[idxp]['url'];
+    palette_link_div.html("<a href=\"" + palette_link + "\">\"" + palette_JSON[idxp]['title'] + "\" palette</a> from <a href=\"http://www.colourlovers.com/\">colour lovers</a>");
+    
+  }
+  var idxc = int(random(colors.length));
+  bgc = colors[idxc];
+  colors.splice(idxc,1);
+}
+
+function mouseClicked() {
+   if(mouseX > 0
+      && mouseX < width
+      && mouseY > 0
+      &&mouseY<height){
+     draw();
+   }
+}
+
+function keyTyped() {
+ if(mouseX > 0
+    && mouseX < width
+    && mouseY > 0
+    &&mouseY<height){
+    if(key === "S") {
+      saveCanvas("s"+int(random(9999)),"png");
+    }
+    if(key === "P") {
+      if(running) { 
+        running = false;
+        noLoop();
+      } else {
+        running = true;
+        loop();
+      }
+    }
+//  if(key === "F") {
+//    var p5div = document.getElementById("p5");
+//    launchIntoFullscreen(p5div);
+//  }
+  }
+}
+
+//https://davidwalsh.name/fullscreen
+function launchIntoFullscreen(element) {
+  if(element.requestFullscreen) {
+    element.requestFullscreen();
+  } else if(element.mozRequestFullScreen) {
+    element.mozRequestFullScreen();
+  } else if(element.webkitRequestFullscreen) {
+    element.webkitRequestFullscreen();
+  } else if(element.msRequestFullscreen) {
+    element.msRequestFullscreen();
+  }
+}
+
+
+</script>
+
+<!--
+<script type="application/javascript"
+	src="https://www.colourlovers.com/api/palettes/top?format=json&numResults=40&jsonCallback=parseColours"> </script>
+-->
+
+<div id="p5"></div>
+<div><span id="grid_slider"></span>pattern size</div>
+<div id="text">press "P" to pause/resume<br>click to single step<br>press "S" to save current frame</div>
+<div id="colourloverlink"></div>
+<div id="updates"><small></small></div>
