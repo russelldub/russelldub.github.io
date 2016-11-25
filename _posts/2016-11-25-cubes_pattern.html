@@ -1,0 +1,139 @@
+---
+layout: post
+title:  "p5.js cubes pattern"
+date:   2016-11-25 01:10:00
+categories: experiments
+custom_js:
+  - p5/p5.min.js
+  - p5/addons/p5.dom.js
+---
+
+<script type="text/javascript">
+
+var pg
+var colors;
+//https://coolors.co/3ab1a2-c45353-254430-b6c567-70958f
+var colors_pre = ['rgb(58, 177, 162)',
+          'rgb(196, 83, 83)',
+          'rgb(37, 68, 48)',
+          'rgb(182, 197, 103)',
+          'rgb(112, 149, 143)'];
+
+var palette_JSON = [];
+
+var grid_size = 150;
+
+
+//Colour Lovers doesn't have an https end point
+//function parseColours(response) {
+//  console.log("Parsing Colours!");
+//  console.log(response.length);
+//  console.log(response[0]['colors']);
+//  palette_JSON = response;
+//}
+
+function preload() {
+  //loadJSON loads this file as an object with keys 0-39 for some reason
+  palette_JSON=loadJSON("/assets/colour_lovers_top40.json");
+  pg = createGraphics(256,256);
+}
+
+
+function setup() {
+  p5c = createCanvas(800, 600, WEBGL);
+  p5c.parent("p5");
+  noLoop();
+  ortho(-width, width, height, -height/2, 0.001, 10000);
+  getColors();
+}
+
+function ortho_box(i,j) {
+  push();
+  translate(-1.15*width,height/2);
+  translate(i*grid_size*6/7,-j*grid_size);
+  randX = random();
+  randY = random();
+  if(randX < 0.5) {
+    rotateX(PI/4);
+  } else {
+    rotateX(-PI/4);
+  } 
+  if(randY < 0.5) {
+    rotateY(PI/4);
+  } else {
+    rotateY(-PI/4);
+  } 
+
+  var idxs = [];
+  for(var i = 0; i < colors.length; ++i) { idxs.push(i); }
+  var idx = int(random(idxs.length));
+  var c = colors[idxs[idx]];
+  idxs.splice(idx,1);
+  var idx_stroke = int(random(idxs.length));
+  var c_stroke = colors[idxs[idx_stroke]];
+
+  pg.background(c);
+  pg.stroke(c_stroke);
+  pg.strokeWeight(15);
+  pg.line(0,0,0,255);
+  pg.line(0,0,255,0);
+  pg.line(255,255,0,255);
+  pg.line(255,255,255,0);
+  texture(pg);
+  b = box(0.6*grid_size,0.6*grid_size,0.6*grid_size);
+  pop();
+}
+
+function draw() {
+  getColors();
+  //background(colors[0]);
+  for(var iy = 0; iy < 2*floor(height/grid_size); ++iy) {
+    for(var ix = 0; ix < 2.5*floor(width/grid_size); ++ix) {
+  //for(var ix = 2*floor(width/grid_size) - 1; ix >= 0 ; --ix) {
+  //  for(var iy = 2*floor(height/grid_size) - 1; iy >= 0; --iy) {
+        ortho_box(ix,iy);
+    }
+  }
+}
+
+function getColors() {
+  if(palette_JSON.length === 0) {
+    colors = colors_pre;
+  } else {
+    palette_keys=Object.keys(palette_JSON)
+    idxp = int(random(palette_keys.length))
+    palette = palette_JSON[palette_keys[idxp]];
+    colors = [];
+    for(var i = 0;  i < palette["colors"].length; ++i) {
+      colors.push("#"+ palette['colors'][i]);
+    }
+    idx = int(random(colors.length));
+    c = colors.pop(idx);
+    //background(c);
+    var palette_link_div=select("#colourloverlink");
+    palette_link = palette_JSON[idxp]['url'];
+    palette_link_div.html("<a href=\"" + palette_link + "\">\"" + palette_JSON[idxp]['title'] + "\" palette</a> from <a href=\"http://www.colourlovers.com/\">colour lovers</a>");
+    
+  }
+}
+
+function mouseClicked() {
+   if(mouseX > 0
+      && mouseX < width
+      && mouseY > 0
+      &&mouseY<height){
+     draw();
+   }
+}
+
+</script>
+
+<!--
+<script type="application/javascript"
+	src="https://www.colourlovers.com/api/palettes/top?format=json&numResults=40&jsonCallback=parseColours"> </script>
+-->
+
+<div id="p5"></div>
+<div id="text">click to regen</br>inspired by <a href="http://regolo54.tumblr.com/post/153594039222/isometric">regolo54</a><small> (but still needs some work)</small></div>
+<div id="colourloverlink"></div>
+<div id="updates"><small></small></div>
