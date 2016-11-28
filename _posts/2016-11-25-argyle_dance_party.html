@@ -29,6 +29,9 @@ var frameCountLocal = 1;
 var framesPerColor = 10;
 var flipFrame = framesPerColor;
 
+var stdWidth  = 800;
+var stdHeight = 600;
+var p5fullscreen = false;
 
 //Colour Lovers doesn't have an https end point
 //function parseColours(response) {
@@ -47,7 +50,7 @@ function preload() {
 
 
 function setup() {
-  p5c = createCanvas(800, 600, P2D);
+  p5c = createCanvas(stdWidth, stdHeight, P2D);
   p5c.parent("p5");
   getColors();
   clockTime = 0;
@@ -117,9 +120,7 @@ function getColors() {
     for(var i = 0;  i < palette["colors"].length; ++i) {
       colors.push("#"+ palette['colors'][i]);
     }
-    idx = int(random(colors.length));
-    c = colors.pop(idx);
-    //background(c);
+
     var palette_link_div=select("#colourloverlink");
     palette_link = palette_JSON[idxp]['url'];
     palette_link_div.html("<a href=\"" + palette_link + "\">\"" + palette_JSON[idxp]['title'] + "\" palette</a> from <a href=\"http://www.colourlovers.com/\">colour lovers</a>");
@@ -156,10 +157,10 @@ function keyTyped() {
         loop();
       }
     }
-//  if(key === "F") {
-//    var p5div = document.getElementById("p5");
-//    launchIntoFullscreen(p5div);
-//  }
+    if(key === "F") {
+      var p5div = document.getElementById("p5");
+      launchIntoFullscreen(p5div);
+    }
   }
 }
 
@@ -167,15 +168,35 @@ function keyTyped() {
 function launchIntoFullscreen(element) {
   if(element.requestFullscreen) {
     element.requestFullscreen();
-  } else if(element.mozRequestFullScreen) {
-    element.mozRequestFullScreen();
   } else if(element.webkitRequestFullscreen) {
     element.webkitRequestFullscreen();
+  } else if(element.mozRequestFullScreen) {
+    element.mozRequestFullScreen();
   } else if(element.msRequestFullscreen) {
     element.msRequestFullscreen();
   }
 }
 
+//http://stackoverflow.com/questions/8796988/binding-multiple-events-to-a-listener-without-jquery
+function addListenerMulti(el, s, fn) {
+  var evts = s.split(' ');
+  for (var i=0, iLen=evts.length; i<iLen; i++) {
+    el.addEventListener(evts[i], fn, false);
+  }
+};
+
+addListenerMulti(document,'webkitfullscreenchange mozfullscreenchange fullscreenchange', function(e) {
+    console.log('fullscreenchange event!');
+    if (!p5fullscreen) {
+        console.log('not fullscreen');
+        resizeCanvas(screen.width,screen.height);
+        p5fullscreen = true;
+    } else {
+        console.log('fullscreen');
+        resizeCanvas(stdWidth,stdHeight);
+        p5fullscreen = false;
+    }
+} );
 
 </script>
 
@@ -186,6 +207,6 @@ function launchIntoFullscreen(element) {
 
 <div id="p5"></div>
 <div><span id="grid_slider"></span>pattern size</div>
-<div id="text">press "P" to pause/resume<br>click to single step<br>press "S" to save current frame</div>
+<div id="text">press "P" to pause/resume<br>click to single step<br>press "S" to save current frame<br>press "F" to go fullscreen</div>
 <div id="colourloverlink"></div>
-<div id="updates"><small></small></div>
+<div id="updates"><small>2016-11-27: fix for colors;  add full-screen controls</small></div>
