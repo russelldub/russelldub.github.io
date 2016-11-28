@@ -1,0 +1,188 @@
+---
+layout: post
+title:  "color weaver"
+date:   2016-11-27 19:38:00
+categories: experiments
+custom_js:
+  - p5/p5.min.js
+  - p5/addons/p5.dom.js
+---
+
+<script type="text/javascript">
+
+var p5c;
+var t = 0;
+var n_lines = 9;
+var lines_slider;
+var speed = 100;
+var speed_slider;
+var colors;
+var bgc;
+var running = true;
+var stdWidth  = 800;
+var stdHeight = 450;
+var p5fullscreen = false;
+
+//https://coolors.co/3ab1a2-c45353-254430-b6c567-70958f
+var colors_pre = ['rgb(58, 177, 162)',
+          'rgb(196, 83, 83)',
+          'rgb(37, 68, 48)',
+          'rgb(182, 197, 103)',
+          'rgb(112, 149, 143)'];
+
+var palette_JSON = [];
+
+function preload() {
+  palette_JSON=loadJSON("/assets/colour_lovers_top40.json");
+  lines_slider=createSlider(5,12,n_lines);
+  lines_slider.parent("lines_slider");
+  lines_slider.style.right="0px";
+  n_lines = lines_slider.value();
+
+  speed_slider=createSlider(1,200,speed);
+  speed_slider.parent("speed_slider");
+  speed_slider.style.right="0px";
+  speed = speed_slider.value();
+}
+
+function setup() {
+  p5c = createCanvas(stdWidth, stdHeight, P2D);
+  p5c.parent("p5");
+
+  strokeWeight(10);
+  getColors();
+  noFill();
+}
+
+function thread_fn(x,t) {
+    var y = 0.5*height*(1.0 + 0.5*sin(x/width*PI + t)*exp(-pow(abs(x-0.5*width)/(0.25*width),2.0) ) );
+    return y;
+}
+
+function thread(t) {
+  var n_points = 50;
+  beginShape();
+  for(var i = -1; i < n_points+1; ++i) {
+    var x = i*width/(n_points-1);
+    var y = thread_fn(x,t);
+    curveVertex(x,y);
+  }
+  endShape();
+}
+
+function draw() {
+  background(bgc);
+  speed = speed_slider.value();
+  t += 0.015*(speed*0.01);
+
+  n_lines = lines_slider.value();
+  for(var i = 0; i < n_lines; ++i)
+  {
+    stroke(colors[i%colors.length]);
+    var angle = i * TWO_PI/(n_lines);
+    thread(t+angle);
+  }
+}
+
+function getColors() {
+  if(palette_JSON.length === 0) {
+    colors = colors_pre;
+  } else {
+    palette_keys=Object.keys(palette_JSON)
+    idxp = int(random(palette_keys.length))
+    palette = palette_JSON[palette_keys[idxp]];
+    colors = [];
+    for(var i = 0;  i < palette["colors"].length; ++i) {
+      cc = color("#"+ palette['colors'][i]);
+      cc._array[3] = 0.5;
+      colors.push(cc);
+    }
+    
+    var palette_link_div=select("#colourloverlink");
+    palette_link = palette_JSON[idxp]['url'];
+    palette_link_div.html("<a href=\"" + palette_link + "\">\"" + palette_JSON[idxp]['title'] + "\" palette</a> from <a href=\"http://www.colourlovers.com/\">colour lovers</a>");
+    
+  }
+  var idxc = int(random(colors.length));
+  bgc = colors[idxc];
+  background(bgc);
+  bgc._array[3] = 0.3;
+  colors.splice(idxc,1);
+}
+
+function mouseClicked() {
+   if(mouseX > 0
+      && mouseX < width
+      && mouseY > 0
+      &&mouseY<height){
+     getColors();
+   }
+}
+
+function keyTyped() {
+ if(mouseX > 0
+    && mouseX < width
+    && mouseY > 0
+    &&mouseY<height){
+    if(key === "S") {
+      saveCanvas("s"+int(random(9999)),"png");
+    }
+    if(key === "P") {
+      if(running) { 
+        running = false;
+        noLoop();
+      } else {
+        running = true;
+        loop();
+      }
+    }
+    if(key === "F") {
+      var p5div = document.getElementById("p5");
+      launchIntoFullscreen(p5div);
+    }
+  }
+}
+
+//https://davidwalsh.name/fullscreen
+function launchIntoFullscreen(element) {
+  if(element.requestFullscreen) {
+    element.requestFullscreen();
+  } else if(element.webkitRequestFullscreen) {
+    element.webkitRequestFullscreen();
+  } else if(element.mozRequestFullScreen) {
+    element.mozRequestFullScreen();
+  } else if(element.msRequestFullscreen) {
+    element.msRequestFullscreen();
+  }
+}
+
+//http://stackoverflow.com/questions/8796988/binding-multiple-events-to-a-listener-without-jquery
+function addListenerMulti(el, s, fn) {
+  var evts = s.split(' ');
+  for (var i=0, iLen=evts.length; i<iLen; i++) {
+    el.addEventListener(evts[i], fn, false);
+  }
+};
+
+addListenerMulti(document,'webkitfullscreenchange mozfullscreenchange fullscreenchange', function(e) {
+    console.log('fullscreenchange event!');
+    if (!p5fullscreen) {
+        console.log('not fullscreen');
+        resizeCanvas(screen.width,screen.height);
+        p5fullscreen = true;
+    } else {
+        console.log('fullscreen');
+        resizeCanvas(stdWidth,stdHeight);
+        p5fullscreen = false;
+    }
+} );
+</script>
+
+<div id="p5"></div>
+<div><span id="lines_slider"></span># of lines</div>
+<div><span id="speed_slider"></span>speed</div>
+
+<div id="text">click to change colors<br>press "P" to pause/resume<br>press "S" to save current frame</div>
+<div id="text">inspired by <a href="http://low-sugar-eye-candy.tumblr.com/post/153611226383/woven-iv">low sugar eye candy</a></div>
+<div id="colourloverlink"></div>
+<div id="update"></div>
