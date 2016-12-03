@@ -1,0 +1,245 @@
+---
+layout: post
+title:  "circle motes"
+date:   2016-12-03 10:08:00
+categories: experiments
+custom_js:
+  - p5/p5.min.js
+  - p5/addons/p5.dom.js
+---
+
+<script type="text/javascript">
+var p5c;
+
+var theta;
+var r_min;
+var r_max;
+
+var n_lines = 2500;
+var lines_slider;
+
+var inner_radius = 0.9;
+var radius_slider;
+
+var speed = 1;
+var speed_slider;
+
+var mode = 0;
+var mode_checkbox;
+
+var MAX_COLORS = 20;
+var colors;
+var bgc;
+
+var stdWidth  = 450;
+var stdHeight = 450;
+var p5fullscreen = false;
+
+var running = true;
+
+var l_thetas = [];
+var l_r = [];
+var l_c = [];
+var l_d = [];
+
+function preload() {
+  palette_JSON=loadJSON("/assets/colour_lovers_top40.json");
+}
+
+function setup() {
+  p5c = createCanvas(stdWidth, stdHeight);
+  p5c.parent("p5");
+
+  getColors();
+  frameRate(20);
+
+  theta = PI*5/4;
+
+  mode_checkbox = createCheckbox('mode',false);
+  mode_checkbox.parent("mode_checkbox");
+  mode_checkbox.changed(function() { mode = !mode; });
+
+  radius_slider=createSlider(0,2,inner_radius,0.01);
+  radius_slider.parent("radius_slider");
+  radius_slider.style.right="0px";
+  inner_radius = radius_slider.value();
+
+  speed_slider=createSlider(0,2,speed,0.01);
+  speed_slider.parent("speed_slider");
+  speed_slider.style.right="0px";
+  speed = speed_slider.value();
+
+  lines_slider=createSlider(1000,8000,n_lines,100);
+  lines_slider.parent("slider");
+  lines_slider.style.right="0px";
+  n_lines = lines_slider.value();
+  for(var i = 0; i < n_lines; ++i) {
+    l_thetas.push(random(0,TWO_PI));
+    l_r.push(random(0,1.0));
+    l_c.push(int(random(MAX_COLORS)));
+    var dir_pick = random();
+    if(dir_pick > 0.5) {
+      l_d.push(+1);
+    } else {
+      l_d.push(-1);
+    }
+  }
+
+  strokeWeight(0.2);
+  noFill();
+}
+
+function draw() {
+  inner_radius = radius_slider.value();
+  speed = speed_slider.value();
+  n_lines = lines_slider.value();
+  r_max = height*0.35;
+  r_min = r_max*inner_radius;
+  background(42);
+
+  push()
+  translate(width/2,height/2);
+  for(var i = 0; i < n_lines; ++i)
+  {
+    if(i >= l_thetas.length) {
+      l_thetas.push(random(0,TWO_PI));
+      l_r.push(random(0,1.0));
+      l_c.push(int(random(colors.length)));
+    }
+    l_thetas[i] += l_d[i]*random(0.001*TWO_PI)*speed;
+    if(l_thetas[i] < 0) l_thetas[i] += TWO_PI;
+    if(l_thetas[i] > TWO_PI) l_thetas[i] -= TWO_PI;
+    r =  l_r[i]*(r_max-r_min) + r_min;
+    theta_i = l_thetas[i];
+
+    var len;
+    if(mode==0) { 
+      len = 4*width;
+    } else {
+      if(theta_i > PI*0.75 && theta_i < PI*1.75 ) {
+        len = width*4;
+      } else {
+        var theta_i_end = 3*QUARTER_PI + (3*QUARTER_PI-theta_i);
+        var theta_included = theta_i_end - theta_i;
+        var c_inner = 2*r*sin(0.5*theta_included);
+        var c_outer = 2*r_max*sin(0.5*theta_included);
+        len = c_inner + 0.5*(c_outer-c_inner);
+        //len = width*4;
+      }
+    }
+    var x1 = r*cos(theta_i);
+    var y1 = r*sin(theta_i);
+    var x2 = x1 + len*cos(theta);
+    var y2 = y1 + len*sin(theta);
+
+    var color_idx = l_c[i] % colors.length;
+    stroke(colors[color_idx]);
+    line(x1,y1,x2,y2);
+  }
+  pop();
+}
+
+function getColors() {
+  if(palette_JSON.length === 0) {
+    colors = colors_pre;
+  } else {
+    palette_keys=Object.keys(palette_JSON);
+    idxp = int(random(palette_keys.length));
+    palette = palette_JSON[palette_keys[idxp]];
+    colors = [];
+    for(var i = 0;  i < palette["colors"].length; ++i) {
+      cc = color("#"+ palette['colors'][i]);
+      cc._array[3] = 0.8;
+      colors.push(cc);
+    }
+    
+    var palette_link_div=select("#colourloverlink");
+    palette_link = palette_JSON[idxp]['url'];
+    palette_link_div.html("<a href=\"" + palette_link + "\">\"" + palette_JSON[idxp]['title'] + "\" palette</a> from <a href=\"http://www.colourlovers.com/\">colour lovers</a>");
+    
+  }
+  //var idxc = int(random(colors.length));
+  //bgc = colors[idxc];
+  //bgc._array[3] = 1.0;
+  //colors.splice(idxc,1);
+}
+
+function mouseReleased() {
+   if(mouseX > 0
+      && mouseX < width
+      && mouseY > 0
+      &&mouseY<height){
+     getColors();
+   }
+   //return false;
+}
+
+function keyTyped() {
+ if(mouseX > 0
+    && mouseX < width
+    && mouseY > 0
+    &&mouseY < height){
+    if(key === "S") {
+      saveCanvas("s"+int(random(9999)),"png");
+    }
+    if(key === "P") {
+      if(running) { 
+        running = false;
+        noLoop();
+      } else {
+        running = true;
+        loop();
+      }
+    }
+    if(key === "F") {
+      var p5div = document.getElementById("p5");
+      launchIntoFullscreen(p5div);
+    }
+  }
+}
+
+//https://davidwalsh.name/fullscreen
+function launchIntoFullscreen(element) {
+  if(element.requestFullscreen) {
+    element.requestFullscreen();
+  } else if(element.webkitRequestFullscreen) {
+    element.webkitRequestFullscreen();
+  } else if(element.mozRequestFullScreen) {
+    element.mozRequestFullScreen();
+  } else if(element.msRequestFullscreen) {
+    element.msRequestFullscreen();
+  }
+}
+
+//http://stackoverflow.com/questions/8796988/binding-multiple-events-to-a-listener-without-jquery
+function addListenerMulti(el, s, fn) {
+  var evts = s.split(' ');
+  for (var i=0, iLen=evts.length; i<iLen; i++) {
+    el.addEventListener(evts[i], fn, false);
+  }
+};
+
+addListenerMulti(document,'webkitfullscreenchange mozfullscreenchange fullscreenchange', function(e) {
+    console.log('fullscreenchange event!');
+    if (!p5fullscreen) {
+        console.log('not fullscreen');
+        resizeCanvas(screen.width,screen.height);
+        p5fullscreen = true;
+    } else {
+        console.log('fullscreen');
+        resizeCanvas(stdWidth,stdHeight);
+        p5fullscreen = false;
+    }
+} );
+
+</script>
+
+<div id="p5"></div>
+<div><span id="slider"></span># of lines</div>
+<div><span id="speed_slider"></span>speed</div>
+<div><span id="radius_slider"></span>inner radius</div>
+<div><span id="mode_checkbox"></span></div>
+<div id="text">click to change colors<br>press "P" to pause/resume<br>press "S" to save current frame<br>press "F" to go fullscreen<br>
+inspired by <a href="http://echophon.tumblr.com/post/153871599627">echophon</a></div>
+<div id="colourloverlink"></div>
+<div id="update"><small></small></div>
