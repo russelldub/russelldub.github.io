@@ -1,0 +1,235 @@
+---
+layout: post
+title:  "bobbin' and weavin'"
+date:   2016-12-02 20:15:00
+categories: experiments
+custom_js:
+  - p5/p5.min.js
+  - p5/addons/p5.dom.js
+---
+
+<script type="text/javascript">
+
+var t = 0;
+var t_global = 0;
+var n_dots = 12;
+var speed = 100;
+var speed_slider;
+var periods = 4;
+var period_slider;
+var d_mean;
+var dots_slider;
+var circ_color_idx;
+
+var colors;
+var bgc;
+var running = true;
+var stdWidth  = 450;
+var stdHeight = 450;
+var p5fullscreen = false;
+
+
+//https://coolors.co/3ab1a2-c45353-254430-b6c567-70958f
+var colors_pre = ['rgb(58, 177, 162)',
+          'rgb(196, 83, 83)',
+          'rgb(37, 68, 48)',
+          'rgb(182, 197, 103)',
+          'rgb(112, 149, 143)'];
+
+var palette_JSON = [];
+
+function preload() {
+  palette_JSON=loadJSON("/assets/colour_lovers_top40.json");
+
+  dots_slider=createSlider(8,20,n_dots);
+  dots_slider.parent("slider");
+  dots_slider.style.right="0px";
+
+  speed_slider=createSlider(1,200,speed);
+  speed_slider.parent("speed_slider");
+  speed_slider.style.right="0px";
+
+  period_slider=createSlider(1,6,periods);
+  period_slider.parent("period_slider");
+  period_slider.style.right="0px";
+}
+
+function setup() {
+  p5c = createCanvas(stdWidth, stdHeight);
+  p5c.parent("p5");
+
+  d_mean = 0.75*height;
+  getColors();
+}
+
+function draw() {
+  periods = period_slider.value();  
+  n_dots = dots_slider.value();
+  speed = speed_slider.value();
+  d_mean = 0.75*height;
+  background(bgc);
+  t += 0.01*(speed*0.01);;
+  t_global += 0.01*(speed*0.01);
+  var sw = d_mean/80;
+  strokeWeight(sw);
+
+  translate(width/2,height/2);
+
+  // Draw background dots
+  stroke(bgc);
+  for(var i = 0; i < n_dots; ++i) {
+    var angle = i * TWO_PI/(n_dots);
+    if(dotDir(t+angle) === +1) {
+      fill(colors[i%colors.length]);
+      drawDot(t+angle);
+    }
+  }
+
+  //Draw big circle
+  noFill();
+  strokeWeight(d_mean/15);
+  arc(0,0,0.75*height,0.75*height,0,TWO_PI);
+
+  stroke(colors[circ_color_idx]);
+  strokeWeight(d_mean/20);
+  arc(0,0,0.75*height,0.75*height,0,TWO_PI);
+
+  // Draw foreground dots
+  stroke(bgc);
+  strokeWeight(sw);
+  for(var i = 0; i < n_dots; ++i) {
+    var angle = i * TWO_PI/(n_dots);
+    if(dotDir(t+angle) === -1) {
+      fill(colors[i%colors.length]);
+      drawDot(t+angle);
+    }
+  }
+
+}
+
+function offset_fn(t) {
+  var r_off = d_mean/9*sin(periods*t_global+t);
+  return r_off;
+}
+
+function dotDir(t) {
+  r_off_curr = offset_fn(t);
+  r_off_last = offset_fn(t-speed*0.0001);
+  if(r_off_curr > r_off_last) {
+    return +1;
+  } else {
+    return -1;
+  }
+}
+ 
+
+function drawDot(t) {
+  r_mean = 0.5*d_mean;
+  r_off = offset_fn(t);
+  r = r_mean + r_off;
+  x = r*cos(t);
+  y = r*sin(t);
+  ellipse(x,y,d_mean/8);
+}
+
+function getColors() {
+  if(palette_JSON.length === 0) {
+    colors = colors_pre;
+  } else {
+    palette_keys=Object.keys(palette_JSON);
+    idxp = int(random(palette_keys.length));
+    palette = palette_JSON[palette_keys[idxp]];
+    colors = [];
+    for(var i = 0;  i < palette["colors"].length; ++i) {
+      cc = color("#"+ palette['colors'][i]);
+      colors.push(cc);
+    }
+    
+    var palette_link_div=select("#colourloverlink");
+    palette_link = palette_JSON[idxp]['url'];
+    palette_link_div.html("<a href=\"" + palette_link + "\">\"" + palette_JSON[idxp]['title'] + "\" palette</a> from <a href=\"http://www.colourlovers.com/\">colour lovers</a>");
+    
+  }
+  var idxc = int(random(colors.length));
+  bgc = colors[idxc];
+  background(bgc);
+  colors.splice(idxc,1);
+  circ_color_idx = int(random(colors.length));
+}
+
+function mouseClicked() {
+   if(mouseX > 0
+      && mouseX < width
+      && mouseY > 0
+      &&mouseY<height){
+     getColors();
+   }
+}
+
+function keyTyped() {
+ if(mouseX > 0
+    && mouseX < width
+    && mouseY > 0
+    &&mouseY < height){
+    if(key === "S") {
+      saveCanvas("s"+int(random(9999)),"png");
+    }
+    if(key === "P") {
+      if(running) { 
+        running = false;
+        noLoop();
+      } else {
+        running = true;
+        loop();
+      }
+    }
+    if(key === "F") {
+      var p5div = document.getElementById("p5");
+      launchIntoFullscreen(p5div);
+    }
+  }
+}
+
+//https://davidwalsh.name/fullscreen
+function launchIntoFullscreen(element) {
+  if(element.requestFullscreen) {
+    element.requestFullscreen();
+  } else if(element.webkitRequestFullscreen) {
+    element.webkitRequestFullscreen();
+  } else if(element.mozRequestFullScreen) {
+    element.mozRequestFullScreen();
+  } else if(element.msRequestFullscreen) {
+    element.msRequestFullscreen();
+  }
+}
+
+//http://stackoverflow.com/questions/8796988/binding-multiple-events-to-a-listener-without-jquery
+function addListenerMulti(el, s, fn) {
+  var evts = s.split(' ');
+  for (var i=0, iLen=evts.length; i<iLen; i++) {
+    el.addEventListener(evts[i], fn, false);
+  }
+};
+
+addListenerMulti(document,'webkitfullscreenchange mozfullscreenchange fullscreenchange', function(e) {
+    console.log('fullscreenchange event!');
+    if (!p5fullscreen) {
+        console.log('not fullscreen');
+        resizeCanvas(screen.width,screen.height);
+        p5fullscreen = true;
+    } else {
+        console.log('fullscreen');
+        resizeCanvas(stdWidth,stdHeight);
+        p5fullscreen = false;
+    }
+} );
+</script>
+
+<div id="p5"></div>
+<div><span id="slider"></span># of dots</div>
+<div><span id="speed_slider"></span>speed</div>
+<div><span id="period_slider"></span>periods</div>
+<div id="text">click to change colors<br>press "P" to pause/resume<br>press "S" to save current frame<br>press "F" to go fullscreen</div>
+<div id="text">inspired by <a href="https://beesandbombs.tumblr.com/post/150775393989/follow-one">bees and bombs</a></div>
+<div id="colourloverlink"></div>
+<div id="update"></div>
