@@ -1,0 +1,240 @@
+---
+layout: post
+title:  "animated symmetry sketcher"
+date:   2016-12-02 22:17:00
+categories: experiments
+custom_js:
+  - p5/p5.min.js
+  - p5/addons/p5.dom.js
+---
+
+<script type="text/javascript">
+var colors;
+var bgc;
+var running = true;
+var stdWidth  = 450;
+var stdHeight = 450;
+var p5fullscreen = false;
+
+var ptsLast = [];
+var ptsNext = [];
+var n_frames = 120;
+var color_idx = 0;
+var localFrame = 0;
+
+var n_curves = 3;
+var curves_slider;
+
+var symm = 8;
+var symm_slider;
+
+var speed = 1;
+var speed_slider;
+
+//https://coolors.co/3ab1a2-c45353-254430-b6c567-70958f
+var colors_pre = ['rgb(58, 177, 162)',
+          'rgb(196, 83, 83)',
+          'rgb(37, 68, 48)',
+          'rgb(182, 197, 103)',
+          'rgb(112, 149, 143)'];
+
+var palette_JSON = [];
+
+function preload() {
+  palette_JSON=loadJSON("/assets/colour_lovers_top40.json");
+
+  speed_slider=createSlider(0,4,speed,0.01);
+  speed_slider.parent("speed_slider");
+  speed_slider.style.right="0px";
+
+  symm_slider=createSlider(3,20,symm);
+  symm_slider.parent("symm_slider");
+  symm_slider.style.right="0px";
+
+  curves_slider=createSlider(1,7,n_curves);
+  curves_slider.parent("curves_slider");
+  curves_slider.style.right="0px";
+}
+
+function setup() {
+  getColors();
+  p5c = createCanvas(stdWidth, stdHeight);
+  p5c.parent("p5");
+  frameRate(n_frames/3);
+  ptsLast = [];
+  for(var i = 0; i < n_curves; ++i) {
+    ptsLast.push(randomBezier());
+    ptsNext.push(randomBezier());
+  }
+  strokeCap(SQUARE);
+  strokeWeight(8);
+}
+
+function draw() {
+  speed = speed_slider.value();
+  symm = symm_slider.value();
+  localFrame += speed;
+
+  if(localFrame > n_frames) {
+    localFrame = 0;
+    n_curves = curves_slider.value();
+    ptsLast = ptsNext;
+    ptsNext = [];
+    for(var i = 0; i < n_curves; ++i) {
+      ptsNext.push(randomBezier());
+      if(i >= ptsLast.length) {
+        ptsLast.push(randomBezier());
+      }
+    }
+  }
+
+  color_idx = 0;
+  var frac = (localFrame / n_frames);
+  background(bgc);
+
+  push();
+  translate(width/2,height/2);
+  theta = TWO_PI/symm;
+  for(var j = 0; j < n_curves; ++j) {
+    ptsj = [];
+    for(var i = 0; i < 8; ++i) {
+      ptsj.push(lerp(ptsLast[j][i],ptsNext[j][i],frac));
+    }
+    ptsj.push(ptsLast[j][8]);
+    for(var i = 0; i < symm; ++i)
+    {
+      rotate(theta);
+      randomBezier(ptsj);
+    }
+  }
+  pop();
+}
+
+function randomBezier(pts) {
+   noFill();
+   if(!pts) {
+     x1 = random(-width/2,width/2);
+     x2 = random(-width/2,width/2);
+     x3 = random(-width/2,width/2);
+     x4 = random(-width/2,width/2);
+     y1 = random(-height/2,height/2);
+     y2 = random(-height/2,height/2);
+     y3 = random(-height/2,height/2);
+     y4 = random(-height/2,height/2);
+   } else { 
+     x1 = pts[0];
+     y1 = pts[1];
+     x2 = pts[2];
+     y2 = pts[3];
+     x3 = pts[4];
+     y3 = pts[5];
+     x4 = pts[6];
+     y4 = pts[7];
+     stroke(colors[color_idx++%colors.length]);
+     bezier(x1, y1, x2, y2, x3, y3, x4, y4);
+   }
+   return [x1,y1,x2,y2,x3,y3,x4,y4];
+}
+
+function getColors() {
+  if(palette_JSON.length === 0) {
+    colors = colors_pre;
+  } else {
+    palette_keys=Object.keys(palette_JSON);
+    idxp = int(random(palette_keys.length));
+    palette = palette_JSON[palette_keys[idxp]];
+    colors = [];
+    for(var i = 0;  i < palette["colors"].length; ++i) {
+      cc = color("#"+ palette['colors'][i]);
+      cc._array[3] = 0.4;
+      colors.push(cc);
+    }
+    
+    var palette_link_div=select("#colourloverlink");
+    palette_link = palette_JSON[idxp]['url'];
+    palette_link_div.html("<a href=\"" + palette_link + "\">\"" + palette_JSON[idxp]['title'] + "\" palette</a> from <a href=\"http://www.colourlovers.com/\">colour lovers</a>");
+    
+  }
+  var idxc = int(random(colors.length));
+  bgc = colors[idxc];
+  bgc._array[3] = 0.8;
+  background(bgc);
+  colors.splice(idxc,1);
+}
+
+function mouseClicked() {
+   if(mouseX > 0
+      && mouseX < width
+      && mouseY > 0
+      &&mouseY<height){
+     getColors();
+   }
+}
+
+function keyTyped() {
+ if(mouseX > 0
+    && mouseX < width
+    && mouseY > 0
+    &&mouseY < height){
+    if(key === "S") {
+      saveCanvas("s"+int(random(9999)),"png");
+    }
+    if(key === "P") {
+      if(running) { 
+        running = false;
+        noLoop();
+      } else {
+        running = true;
+        loop();
+      }
+    }
+    if(key === "F") {
+      var p5div = document.getElementById("p5");
+      launchIntoFullscreen(p5div);
+    }
+  }
+}
+
+//https://davidwalsh.name/fullscreen
+function launchIntoFullscreen(element) {
+  if(element.requestFullscreen) {
+    element.requestFullscreen();
+  } else if(element.webkitRequestFullscreen) {
+    element.webkitRequestFullscreen();
+  } else if(element.mozRequestFullScreen) {
+    element.mozRequestFullScreen();
+  } else if(element.msRequestFullscreen) {
+    element.msRequestFullscreen();
+  }
+}
+
+//http://stackoverflow.com/questions/8796988/binding-multiple-events-to-a-listener-without-jquery
+function addListenerMulti(el, s, fn) {
+  var evts = s.split(' ');
+  for (var i=0, iLen=evts.length; i<iLen; i++) {
+    el.addEventListener(evts[i], fn, false);
+  }
+};
+
+addListenerMulti(document,'webkitfullscreenchange mozfullscreenchange fullscreenchange', function(e) {
+    console.log('fullscreenchange event!');
+    if (!p5fullscreen) {
+        console.log('not fullscreen');
+        resizeCanvas(screen.width,screen.height);
+        p5fullscreen = true;
+    } else {
+        console.log('fullscreen');
+        resizeCanvas(stdWidth,stdHeight);
+        p5fullscreen = false;
+    }
+} );
+</script>
+
+<div id="p5"></div>
+<div><span id="symm_slider"></span>symmetry</div>
+<div><span id="speed_slider"></span>speed</div>
+<div><span id="curves_slider"></span>num_curves</div>
+<div id="text">click to change colors<br>press "P" to pause/resume<br>press "S" to save current frame<br>press "F" to go fullscreen</div>
+<div id="text">still inspired by <a href="http://low-sugar-eye-candy.tumblr.com/post/153526282667/draw-two-random-curves-rotate-the-paper-repeat">low sugar eye candy</a></div>
+<div id="colourloverlink"></div>
+<div id="update"></div>
