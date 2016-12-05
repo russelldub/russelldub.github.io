@@ -70,7 +70,10 @@ function init() {
   var clipPlane1 = new THREE.Plane( new THREE.Vector3( -Math.cos(4.0*Math.PI/3.0), -Math.sin(4.0*Math.PI/3.0), 0 ), -box_size/30 );
   var clipPlane2 = new THREE.Plane( new THREE.Vector3( 0, 1, 0 ), 0.0 );
   var clipPlane3 = new THREE.Plane( new THREE.Vector3( -Math.cos(4.0*Math.PI/3.0), -Math.sin(4.0*Math.PI/3.0), 0 ), -1.5*box_size );
- clipPlanes = [ clipPlane1, clipPlane2, clipPlane3 ];
+  var clipPlane4 = new THREE.Plane( new THREE.Vector3(  Math.cos(4.0*Math.PI/3.0),  Math.sin(4.0*Math.PI/3.0), 0 ), +box_size/30 );
+  var clipPlane5 = new THREE.Plane( new THREE.Vector3( 0, -1, 0 ), 0.0 );
+  var clipPlane6 = new THREE.Plane( new THREE.Vector3(  Math.cos(4.0*Math.PI/3.0),  Math.sin(4.0*Math.PI/3.0), 0 ),  1.5*box_size );
+ clipPlanes = [ clipPlane1, clipPlane2, clipPlane3, clipPlane4, clipPlane5, clipPlane6 ];
 
   var irz = 1;
   var depth = -200;
@@ -105,9 +108,16 @@ function init() {
       var depth = depths[it];
       if(ir == 1) {depth -= 200;}
       if(ir == 2) {depth -= 1100;}
-      make_cube(bufferScene, box_size, colors[color_idx],
-                center_x+ix, center_y+iy, depth,
-                angle1*Math.PI/180, irz*angle2*Math.PI/180, irz*angle3*Math.PI/180,null);
+      if(it == 5) {
+        make_cube(bufferScene, box_size, colors[color_idx],
+                  center_x+ix, center_y+iy, depth,
+                  angle1*Math.PI/180, irz*angle2*Math.PI/180, irz*angle3*Math.PI/180,clipPlanes[ir+3]);
+                  //angle1*Math.PI/180, irz*angle2*Math.PI/180, irz*angle3*Math.PI/180,null);
+      } else {
+        make_cube(bufferScene, box_size, colors[color_idx],
+                  center_x+ix, center_y+iy, depth,
+                  angle1*Math.PI/180, irz*angle2*Math.PI/180, irz*angle3*Math.PI/180,null);
+      }
       irz *= -1;
     }
     ioff += 1;
@@ -117,26 +127,26 @@ function init() {
   //Connectors
   irz *= -1;
   for(var it = 0; it< 6; ++it) {
-    var r = 2.5;
+    var r = 2.8;
     var t = it*Math.PI/3;
       var ix = r*box_size*Math.cos(t);
       var iy = r*box_size*Math.sin(t);
     color_idx = 0;
     depth = -10000+100*it;
-    var x_size = 1.30*box_size;
-    var y_size = 1.30*box_size;
-    var z_size = 1.30*box_size;
+    var x_size = 1.*box_size;
+    var y_size = 1.*box_size;
+    var z_size = 1.*box_size;
     if(it > 3) {
-      y_size /= 5;
-      z_size /= 5;
+      y_size /= 4;
+      z_size /= 4;
       //x_size += 1.94*z_size;
     } else if (it >0 && it < 3) {
-      x_size /= 5;
-      y_size /= 5;
+      x_size /= 4;
+      y_size /= 4;
       //z_size += 1.94*x_size;
     } else {
-      x_size /= 5;
-      z_size /= 5;
+      x_size /= 4;
+      z_size /= 4;
       //y_size += 1.94*z_size;
     }
     make_connector(bufferScene, x_size, y_size, z_size, colors[color_idx],
@@ -208,7 +218,7 @@ function make_cube(scene,size,c,x,y,z,rx,ry,rz, clipPlane) {
     color: c,
     metalness: 0.0,
     roughness: 0,
-    opacity: 1.0,
+    opacity: 0.85,
     side: THREE.FrontSide,
     transparent: true,
     shading: THREE.SmoothShading,
@@ -235,13 +245,20 @@ function make_cube(scene,size,c,x,y,z,rx,ry,rz, clipPlane) {
 
 function make_connector(scene,x_size,y_size,z_size,c,x,y,z,rx,ry,rz, clipPlane) {
   var geometry = new THREE.BoxBufferGeometry( x_size, y_size, z_size);
-  var material;
+  var material = new THREE.MeshPhysicalMaterial( {
+    map: null,
+    color: c,
+    metalness: 0.0,
+    roughness: 0,
+    opacity: 0.85,
+    side: THREE.FrontSide,
+    transparent: true,
+    shading: THREE.SmoothShading,
+    envMapIntensity: 5,
+    premultipliedAlpha: true
+  } );
   if(clipPlane != null) {
-    material = new THREE.MeshLambertMaterial( {color: c,
-      clippingPlanes: [ clipPlane ] }
-    );
-  } else { 
-    material = new THREE.MeshLambertMaterial( {color: c});
+    material.clippingPlanes = [ clipPlane ];
   }
   if(!color_mats[c]) {
     color_mats[c] = [];
@@ -260,6 +277,7 @@ function make_connector(scene,x_size,y_size,z_size,c,x,y,z,rx,ry,rz, clipPlane) 
 
 
 function update_cubes() {
+  var time = clock.getElapsedTime()*0.75;
   var color_mat_keys=Object.keys(color_mats);
   for(var i = 0; i < color_mat_keys.length; ++i) {
     var color_mat_array = color_mats[color_mat_keys[i]];
@@ -267,6 +285,7 @@ function update_cubes() {
       var color_mat = color_mat_array[j];
       var idx = i%colors.length;
       color_mat.color = new THREE.Color(colors[idx]);
+      color_mat.opacity = 0.85+ 0.15*Math.sin(time);
     }
   }
 }
@@ -462,4 +481,4 @@ function solidTexture( color ){
 <div id="text">click to change colors<br>press "F" to go fullscreen<br>
 inspired by <a href="https://www.instagram.com/p/BNLt7bJDfUJ/">regolo54</a>.<br>made with <a href="http://threejs.org">three.js</a></div>
 <div id="colourloverlink"></div>
-<div id="update"><small></small></div>
+<div id="update"><small>updates:<br>2016-12-04: added transparency</small></div>
