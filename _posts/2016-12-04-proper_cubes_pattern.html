@@ -1,0 +1,465 @@
+---
+layout: post
+title:  "proper cube pattern"
+date:   2016-12-04 20:18:00
+categories: experiments
+custom_js:
+  - three/three.min.js
+---
+
+<script type="text/javascript">
+var camera, scene, renderer;
+var bufferScene, bufferTexture, buf_camera;
+var cube;
+var cubes = [];
+var color_mats = {};
+var lights = [];
+var clipPlanes;
+var clock = new THREE.Clock();
+var renderWidth = 600;
+var renderHeight = 450;
+var renderMeshes = [];
+var three_fullscreen = false;
+var box_size = 60;
+
+var palette_JSON = [];
+var colors_pre = ['rgb(58, 177, 162)',
+          'rgb(196, 83, 83)',
+          'rgb(37, 68, 48)',
+          'rgb(182, 197, 103)',
+          'rgb(112, 149, 143)',
+          'rgb(42, 42, 42)'];
+var colors = colors_pre;
+
+
+window.onload = function() {
+  loadJSON('/assets/colour_lovers_top40.json',function(response) {
+     palette_JSON = JSON.parse(response);
+     getColors();
+     init();
+     animate();
+  });
+}
+
+
+function init() {
+  bufferScene = new THREE.Scene();
+  //bufferScene.fog = new THREE.Fog(0xffffff,-10,100);
+  bufferTexture = new THREE.WebGLRenderTarget( 4*renderWidth, 4*renderHeight, { minFilter: THREE.LinearFilter, magFilter: THREE.NearestFilter, format: THREE.RGBAFormat});
+ 
+  buf_camera = new THREE.OrthographicCamera(-renderWidth/2, renderWidth/2, -renderHeight/2, renderHeight/2, 1, 1000000 );
+  camera = new THREE.OrthographicCamera(-renderWidth/2, renderWidth/2, -renderHeight/2, renderHeight/2, 1, 1000000 );
+  scene = new THREE.Scene();
+
+  var ambient = new THREE.AmbientLight( 0xffffff );
+  scene.add( ambient );
+
+  var directionalLight = new THREE.DirectionalLight( 0xffffff, 1.0 );
+  directionalLight.position.set( -10, -10, -10 );
+  bufferScene.add( directionalLight );
+  var directionalLight2 = new THREE.DirectionalLight( 0xffffff, 1.0 );
+  directionalLight2.position.set( +10, +10, -10 );
+  bufferScene.add( directionalLight2 );
+  lights= [directionalLight, directionalLight2];
+
+  renderer = new THREE.WebGLRenderer({antialias: true});
+  renderer.setPixelRatio( window.devicePixelRatio );
+  renderer.setSize( renderWidth, renderHeight );
+  renderer.localClippingEnabled = true;
+
+  var clipPlane1 = new THREE.Plane( new THREE.Vector3( -Math.cos(4.0*Math.PI/3.0), -Math.sin(4.0*Math.PI/3.0), 0 ), -box_size/30 );
+  var clipPlane2 = new THREE.Plane( new THREE.Vector3( 0, 1, 0 ), 0.0 );
+  var clipPlane3 = new THREE.Plane( new THREE.Vector3( -Math.cos(4.0*Math.PI/3.0), -Math.sin(4.0*Math.PI/3.0), 0 ), -1.5*box_size );
+ clipPlanes = [ clipPlane1, clipPlane2, clipPlane3 ];
+
+  var irz = 1;
+  var depth = -200;
+  var color_idx = 0;
+
+  angle1 = 360/(5*Math.sqrt(2));
+  angle2 = angle1/2;
+  angle3 = 62.1;
+
+  center_x = 0;
+  center_y = 0;
+  var ioff = 0;
+  var offset = 0;
+
+  depths= [ -2000, -3000, -4000, -5000, -6000, -7000 ];
+
+  rs = [1.0, 1.7, 2.0];
+  for(var ir = 0; ir < 3; ++ir) {
+    var r = rs[ir];
+    irz = -1;
+    for(var it = 5; it >= 0; --it) {
+      t = Math.PI/6-offset + it*Math.PI/3;
+      color_idx += 1;
+      color_idx = color_idx % colors.length;
+      var ix = r*box_size*Math.cos(t);
+      var iy = r*box_size*Math.sin(t);
+      if(it == 5 ) {
+        make_cube(bufferScene, box_size, colors[color_idx],
+                  center_x+ix, center_y+iy, -700*(ir+1),
+                  angle1*Math.PI/180, irz*angle2*Math.PI/180, irz*angle3*Math.PI/180,clipPlanes[ir]);
+      }
+      var depth = depths[it];
+      if(ir == 1) {depth -= 200;}
+      if(ir == 2) {depth -= 1100;}
+      make_cube(bufferScene, box_size, colors[color_idx],
+                center_x+ix, center_y+iy, depth,
+                angle1*Math.PI/180, irz*angle2*Math.PI/180, irz*angle3*Math.PI/180,null);
+      irz *= -1;
+    }
+    ioff += 1;
+    offset = -ioff*Math.PI/6;
+  }
+
+  //Connectors
+  irz *= -1;
+  for(var it = 0; it< 6; ++it) {
+    var r = 2.5;
+    var t = it*Math.PI/3;
+      var ix = r*box_size*Math.cos(t);
+      var iy = r*box_size*Math.sin(t);
+    color_idx = 0;
+    depth = -10000+100*it;
+    var x_size = 1.30*box_size;
+    var y_size = 1.30*box_size;
+    var z_size = 1.30*box_size;
+    if(it > 3) {
+      y_size /= 5;
+      z_size /= 5;
+      //x_size += 1.94*z_size;
+    } else if (it >0 && it < 3) {
+      x_size /= 5;
+      y_size /= 5;
+      //z_size += 1.94*x_size;
+    } else {
+      x_size /= 5;
+      z_size /= 5;
+      //y_size += 1.94*z_size;
+    }
+    make_connector(bufferScene, x_size, y_size, z_size, colors[color_idx],
+              center_x+ix, center_y+iy, depth,
+              angle1*Math.PI/180, irz*angle2*Math.PI/180, irz*angle3*Math.PI/180,null);
+    irz *= -1;
+  }
+
+
+  var renderPlane = new THREE.PlaneBufferGeometry( renderWidth, renderHeight );
+  var planeMaterial = new THREE.MeshBasicMaterial({color: 0xffffff, map:bufferTexture.texture, side: THREE.DoubleSide, transparent: true});
+  var renderMesh = new THREE.Mesh(renderPlane,planeMaterial);
+  renderMesh.position.z = -800;
+  renderMesh.rotation.z = Math.PI;
+  renderMeshes.push(renderMesh);
+
+  scene.add(renderMesh);
+
+  for(var i=1 ; i < 12; i+=2) {
+    var renderMesh2 = new THREE.Mesh(renderPlane,planeMaterial);
+    renderMesh2.position.z = -800;
+    //renderMesh2.rotation.x = Math.PI;
+    renderMesh2.rotation.z = Math.PI;
+    var center_x = 5.41*box_size*Math.cos(i*Math.PI/6);
+    var center_y = 5.41*box_size*Math.sin(i*Math.PI/6);
+    renderMesh2.position.x = center_x;
+    renderMesh2.position.y = center_y;
+    scene.add(renderMesh2);
+    renderMeshes.push(renderMesh2);
+  }
+
+  for(var i=0 ; i < 6; i+=1) {
+    var renderMesh2 = new THREE.Mesh(renderPlane,planeMaterial);
+    renderMesh2.position.z = -800;
+    renderMesh2.rotation.x = Math.PI;
+    var center_x = 1.73*5.41*box_size*Math.cos(i*Math.PI/3);
+    var center_y = 1.73*5.41*box_size*Math.sin(i*Math.PI/3);
+    renderMesh2.position.x = center_x;
+    renderMesh2.position.y = center_y;
+    scene.add(renderMesh2);
+    renderMeshes.push(renderMesh2);
+  }
+
+  var three_div = document.getElementById("three");
+  three_div.appendChild( renderer.domElement );
+  document.addEventListener("keydown", keyDownFullscreen, false);
+  three_div.addEventListener("click", getColors, false);
+} 
+
+function animate() {
+  requestAnimationFrame( animate );
+  render();
+}
+
+function render() {
+  update_cubes();
+  move_lights();
+
+  renderer.clear();
+  renderer.render(bufferScene, buf_camera, bufferTexture, true);
+  renderer.render( scene, camera );
+}
+
+function make_cube(scene,size,c,x,y,z,rx,ry,rz, clipPlane) {
+  var geometry = new THREE.BoxBufferGeometry( size, size, size);
+  var material;
+  var material = new THREE.MeshPhysicalMaterial( {
+    map: null,
+    color: c,
+    metalness: 0.0,
+    roughness: 0,
+    opacity: 1.0,
+    side: THREE.FrontSide,
+    transparent: true,
+    shading: THREE.SmoothShading,
+    envMapIntensity: 5,
+    premultipliedAlpha: true
+  } );
+  if(clipPlane != null) {
+    material.clippingPlanes = [ clipPlane ];
+  }
+  if(!color_mats[c]) {
+    color_mats[c] = [];
+  }
+  color_mats[c].push(material);
+  var cube = new THREE.Mesh( geometry, material );
+  cube.position.x = x;
+  cube.position.y = y;
+  cube.position.z = z;
+  cube.rotation.x = rx;
+  cube.rotation.y = ry;
+  cube.rotation.z = rz;
+  scene.add( cube );
+  cubes.push(cube);
+}
+
+function make_connector(scene,x_size,y_size,z_size,c,x,y,z,rx,ry,rz, clipPlane) {
+  var geometry = new THREE.BoxBufferGeometry( x_size, y_size, z_size);
+  var material;
+  if(clipPlane != null) {
+    material = new THREE.MeshLambertMaterial( {color: c,
+      clippingPlanes: [ clipPlane ] }
+    );
+  } else { 
+    material = new THREE.MeshLambertMaterial( {color: c});
+  }
+  if(!color_mats[c]) {
+    color_mats[c] = [];
+  }
+  color_mats[c].push(material);
+  var cube = new THREE.Mesh( geometry, material );
+  cube.position.x = x;
+  cube.position.y = y;
+  cube.position.z = z;
+  cube.rotation.x = rx;
+  cube.rotation.y = ry;
+  cube.rotation.z = rz;
+  scene.add( cube );
+  cubes.push(cube);
+}
+
+
+function update_cubes() {
+  var color_mat_keys=Object.keys(color_mats);
+  for(var i = 0; i < color_mat_keys.length; ++i) {
+    var color_mat_array = color_mats[color_mat_keys[i]];
+    for(var j = 0; j < color_mat_array.length; ++j) {
+      var color_mat = color_mat_array[j];
+      var idx = i%colors.length;
+      color_mat.color = new THREE.Color(colors[idx]);
+    }
+  }
+}
+
+function move_lights() {
+  var time = clock.getElapsedTime()*2;
+  lights[0].position.set( 10+3*Math.cos(time), 10+3*Math.cos(time), -10 );
+  lights[1].position.set( -10-3*Math.cos(2/3*time), -10-3*Math.cos(time*2/3), -10 );
+}
+
+function getRandomInt(min, max) {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min)) + min;
+}
+
+function shuffle(array) {
+  var currentIndex = array.length, temporaryValue, randomIndex;
+
+  // While there remain elements to shuffle...
+  while (0 !== currentIndex) {
+
+    // Pick a remaining element...
+    randomIndex = Math.floor(Math.random() * currentIndex);
+    currentIndex -= 1;
+
+    // And swap it with the current element.
+    temporaryValue = array[currentIndex];
+    array[currentIndex] = array[randomIndex];
+    array[randomIndex] = temporaryValue;
+  }
+
+  return array;
+}
+
+function getColors() {
+  if(palette_JSON.length === 0) {
+    colors = colors_pre;
+  } else {
+    palette_keys=Object.keys(palette_JSON);
+    colors_try = [];
+    var trials = 0;
+    while(colors_try.length == 0 && trials < 400) {
+      idxp = getRandomInt(0,palette_keys.length);
+      palette = palette_JSON[palette_keys[idxp]];
+      if(palette["colors"].length >= 4) {
+        for(var i = 0;  i < palette["colors"].length; ++i) {
+          cc = "#"+ palette['colors'][i];
+          colors_try.push(cc);
+        }
+        if(colors_try.length<6) colors_try.push("rgb(196,196,196)")
+        if(colors_try.length<6) colors_try.push("rgb(42,42,42)")
+      }
+      trials++;
+    }
+    if(colors_try.length > 0) {colors = shuffle(colors_try);}
+    
+    //var palette_link_div=select("#colourloverlink");
+    var palette_link_div = document.getElementById("colourloverlink");
+    palette_link = palette_JSON[idxp]['url'];
+    palette_link_div.innerHTML = "<a href=\"" + palette_link + "\">\"" + palette_JSON[idxp]['title'] + "\" palette</a> from <a href=\"http://www.colourlovers.com/\">colour lovers</a>";
+  }
+}
+
+function update_scale(factor) {
+  //Geometry is shared between renderMeshes
+  renderMeshes[0].geometry.scale(factor,factor,factor);
+  for(var i = 0; i < renderMeshes.length; ++i) {
+    renderMeshes[i].position.x *= factor;
+    renderMeshes[i].position.y *= factor;
+    renderMeshes[i].position.z *= factor;
+  }
+}
+
+//https://davidwalsh.name/fullscreen
+function launchIntoFullscreen(element) {
+  if(element.requestFullscreen) {
+    element.requestFullscreen();
+  } else if(element.webkitRequestFullscreen) {
+    element.webkitRequestFullscreen();
+  } else if(element.mozRequestFullScreen) {
+    element.mozRequestFullScreen();
+  } else if(element.msRequestFullscreen) {
+    element.msRequestFullscreen();
+  }
+}
+
+//http://stackoverflow.com/questions/8796988/binding-multiple-events-to-a-listener-without-jquery
+function addListenerMulti(el, s, fn) {
+  var evts = s.split(' ');
+  for (var i=0, iLen=evts.length; i<iLen; i++) {
+    el.addEventListener(evts[i], fn, false);
+  }
+};
+
+addListenerMulti(document,'webkitfullscreenchange mozfullscreenchange fullscreenchange', function(e) {
+    console.log('fullscreenchange event!');
+    if (!three_fullscreen) {
+        console.log('not fullscreen');
+
+        camera.left = -screen.width / 2;
+        camera.right =  screen.width / 2;
+        camera.top = screen.height / 2;
+        camera.bottom = -screen.height / 2;
+
+        camera.updateProjectionMatrix();
+        renderer.setSize( screen.width, screen.height );
+        update_scale(screen.height/renderHeight);
+        three_fullscreen = true;
+    } else {
+        console.log('fullscreen');
+
+        camera.left = -renderWidth / 2;
+        camera.right =  renderWidth / 2;
+        camera.top = renderHeight / 2;
+        camera.bottom = -renderHeight / 2;
+
+        camera.updateProjectionMatrix();
+        renderer.setSize( renderWidth, renderHeight );
+        update_scale(renderHeight/screen.height);
+        three_fullscreen = false;
+    }
+} );
+
+
+function keyDownFullscreen(e) {
+  var keyCode = e.keyCode;
+  if(keyCode==70) {
+    var three_div = document.getElementById("three");
+    launchIntoFullscreen(three_div);
+  }
+}
+
+function loadJSON(path, callback) {   
+   var xobj = new XMLHttpRequest();
+       xobj.overrideMimeType("application/json");
+   xobj.open('GET', path, true);
+   xobj.onreadystatechange = function () {
+         if (xobj.readyState == 4 && xobj.status == "200") {
+           // Required use of an anonymous callback as .open will NOT return a value but simply returns undefined in asynchronous mode
+           callback(xobj.responseText);
+         }
+   };
+   xobj.send(null);  
+}
+ 
+
+/*
+//http://stackoverflow.com/questions/20774648/three-js-generate-uv-coordinate
+function assignUVs(geometry) {
+
+    geometry.faceVertexUvs[0] = [];
+
+    geometry.faces.forEach(function(face) {
+
+        var components = ['x', 'y', 'z'].sort(function(a, b) {
+            return Math.abs(face.normal[a]) > Math.abs(face.normal[b]);
+        });
+
+        var v1 = geometry.vertices[face.a];
+        var v2 = geometry.vertices[face.b];
+        var v3 = geometry.vertices[face.c];
+
+        geometry.faceVertexUvs[0].push([
+            new THREE.Vector2(v1[components[0]], v1[components[1]]),
+            new THREE.Vector2(v2[components[0]], v2[components[1]]),
+            new THREE.Vector2(v3[components[0]], v3[components[1]])
+        ]);
+
+    });
+
+    geometry.uvsNeedUpdate = true;
+}
+
+//https://github.com/mrdoob/three.js/issues/386#issuecomment-1700210
+function solidTexture( color ){
+   var texture = new THREE.Texture( { width: 1,height:1}  ); 
+
+   texture.needsUpdate = false; // this iscorrect 
+   texture.__webglTexture = gl.createTexture();
+   gl.bindTexture( gl.TEXTURE_2D, texture.__webglTexture );
+
+   var pixel = new Uint8Array(color.slice(0, 4));
+   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+
+   gl.bindTexture( gl.TEXTURE_2D, null );
+   return texture;
+}
+*/
+</script>
+
+<div id="three"></div>
+<div id="text">click to change colors<br>press "F" to go fullscreen<br>
+inspired by <a href="https://www.instagram.com/p/BNLt7bJDfUJ/">regolo54</a>.<br>made with <a href="http://threejs.org">three.js</a></div>
+<div id="colourloverlink"></div>
+<div id="update"><small></small></div>
