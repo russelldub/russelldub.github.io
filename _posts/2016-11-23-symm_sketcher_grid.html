@@ -6,6 +6,7 @@ categories: experiments
 custom_js:
   - p5/p5.min.js
   - p5/addons/p5.dom.js
+  - local/fs.js
 ---
 
 <script type="text/javascript">
@@ -20,7 +21,9 @@ var colors_pre = ['rgb(58, 177, 162)',
 
 var palette_JSON = [];
 
-var grid_size = 100;
+var origWidth = 800;
+var origHeight = 600;
+var grid_size = origWidth/8;
 
 //Colour Lovers doesn't have an https end point
 //function parseColours(response) {
@@ -35,36 +38,20 @@ function preload() {
   palette_JSON=loadJSON("/assets/colour_lovers_top40.json");
 }
 
-
 function setup() {
-  p5c = createCanvas(800, 600);
+  p5c = createCanvas(origWidth, origHeight);
   p5c.parent("p5");
+  fs.addFullScreenControl(p5c.parent(),origWidth,origHeight,resizeCanvas);
   noLoop();
-
 }
 
 function draw() {
-  if(palette_JSON.length === 0) {
-    colors = colors_pre;
-  } else {
-    palette_keys=Object.keys(palette_JSON)
-    idxp = int(random(palette_keys.length))
-    palette = palette_JSON[palette_keys[idxp]];
-    colors = [];
-    for(var i = 0;  i < palette["colors"].length; ++i) {
-      colors.push("#"+ palette['colors'][i]);
-    }
-    idx = int(random(colors.length));
-    c = colors.pop(idx);
-    background(c);
-    var palette_link_div=select("#colourloverlink");
-    palette_link = palette_JSON[idxp]['url'];
-    palette_link_div.html("<a href=\"" + palette_link + "\">\"" + palette_JSON[idxp]['title'] + "\" palette</a> from <a href=\"http://www.colourlovers.com/\">colour lovers</a>");
-    
-  }
+  grid_size = width/8;
+  strokeWeight(width/800);
+  getColors();
 
-  for(var ix = 0; ix < floor(width/grid_size); ++ix) {
-    for(var iy = 0; iy < floor(height/grid_size); ++iy) {
+  for(var ix = 0; ix < ceil(width/grid_size); ++ix) {
+    for(var iy = 0; iy < ceil(height/grid_size); ++iy) {
 
       push();
       translate(grid_size*ix+grid_size/2,grid_size*iy+grid_size/2);
@@ -112,7 +99,28 @@ function randomBezier(pts) {
    return [x1,y1,x2,y2,x3,y3,x4,y4,c];
 }
 
-function mouseClicked() {
+
+function getColors() {
+  if(palette_JSON.length === 0) {
+    colors = colors_pre;
+  } else {
+    palette_keys=Object.keys(palette_JSON)
+    idxp = int(random(palette_keys.length))
+    palette = palette_JSON[palette_keys[idxp]];
+    colors = [];
+    for(var i = 0;  i < palette["colors"].length; ++i) {
+      colors.push("#"+ palette['colors'][i]);
+    }
+    idx = int(random(colors.length));
+    c = colors.pop(idx);
+    background(c);
+    var palette_link_div=select("#colourloverlink");
+    palette_link = palette_JSON[idxp]['url'];
+    palette_link_div.html("<a href=\"" + palette_link + "\">\"" + palette_JSON[idxp]['title'] + "\" palette</a> from <a href=\"http://www.colourlovers.com/\">colour lovers</a>");
+    
+  }
+}
+function mouseReleased() {
    if(mouseX > 0
       && mouseX < width
       && mouseY > 0
@@ -122,10 +130,14 @@ function mouseClicked() {
 }
 
 function keyTyped() {
-  if(key === "S") {
-    saveCanvas("s"+int(random(9999)),"png");
+   if(mouseX > 0
+      && mouseX < width
+      && mouseY > 0
+      &&mouseY<height){
+    if(key === "S") {
+      saveCanvas("s"+int(random(9999)),"png");
+    }
   }
-
 }
 </script>
 
@@ -137,4 +149,7 @@ function keyTyped() {
 <div id="p5"></div>
 <div id="text">click to regen</br>type capital "s" to save</br>inspired by <a href="http://low-sugar-eye-candy.tumblr.com/post/153526282667/draw-two-random-curves-rotate-the-paper-repeat">low sugar eye candy</a></div>
 <div id="colourloverlink"></div>
-<div id="updates"><small>update 2016-11-24: add background color</small></div>
+<div id="updates"><small>
+update 2016-11-24: add background color<br>
+update 2016-12-09: add fullscreen<br>
+</small></div>
