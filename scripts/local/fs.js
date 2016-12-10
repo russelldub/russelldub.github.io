@@ -43,7 +43,13 @@ var fs = {
 	for(var i = 0 ; i < element_keys.length; ++i) {
           if(fs.fs_elements[element_keys[i]].toggle) {
               //fs.fs_elements[element_keys[i]].callback(screen.width,screen.height);
-              fs.fs_elements[element_keys[i]].callback(window.outerWidth,window.outerHeight);
+	      var width = window.outerWidth;
+	      var height = window.outerHeight;
+	      if(width > height) {
+                fs.fs_elements[element_keys[i]].callback(width,height);
+	      } else {
+                fs.fs_elements[element_keys[i]].callback(height,width);
+	      }
               fs.fs_elements[element_keys[i]].toggle = false;
           } else { 
 	      console.log(fs.fs_elements);
