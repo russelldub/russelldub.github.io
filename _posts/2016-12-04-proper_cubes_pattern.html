@@ -5,6 +5,7 @@ date:   2016-12-04 20:18:00
 categories: experiments
 custom_js:
   - three/three.min.js
+  - local/fs.js
 ---
 
 <script type="text/javascript">
@@ -57,7 +58,7 @@ function init() {
   bufferTexture = new THREE.WebGLRenderTarget( 4*renderWidth, 4*renderHeight, { minFilter: THREE.LinearFilter, magFilter: THREE.NearestFilter, format: THREE.RGBAFormat});
  
   buf_camera = new THREE.OrthographicCamera(-renderWidth/2, renderWidth/2, -renderHeight/2, renderHeight/2, 1, 1000000 );
-  camera = new THREE.OrthographicCamera(-renderWidth/2, renderWidth/2, -renderHeight/2, renderHeight/2, 1, 1000000 );
+  camera = new THREE.OrthographicCamera(-renderWidth/2, renderWidth/2, -renderHeight/2, renderHeight/2, 1000, 5000 );
   scene = new THREE.Scene();
 
   var ambient = new THREE.AmbientLight( 0xffffff );
@@ -75,6 +76,8 @@ function init() {
   renderer.setPixelRatio( window.devicePixelRatio );
   renderer.setSize( renderWidth, renderHeight );
   renderer.localClippingEnabled = true;
+  var Empty = Object.freeze( [] );
+  renderer.clippingPlanes = Empty;
 
   var clipPlane1 = new THREE.Plane( new THREE.Vector3( -Math.cos(4.0*Math.PI/3.0), -Math.sin(4.0*Math.PI/3.0), 0 ), -box_size/30 );
   var clipPlane2 = new THREE.Plane( new THREE.Vector3( 0, 1, 0 ), 0.0 );
@@ -168,7 +171,7 @@ function init() {
   var renderPlane = new THREE.PlaneBufferGeometry( renderWidth, renderHeight );
   var planeMaterial = new THREE.MeshBasicMaterial({color: 0xffffff, map:bufferTexture.texture, side: THREE.DoubleSide, transparent: true});
   var renderMesh = new THREE.Mesh(renderPlane,planeMaterial);
-  renderMesh.position.z = -800;
+  renderMesh.position.z = -1300;
   renderMesh.rotation.z = Math.PI;
   renderMeshes.push(renderMesh);
 
@@ -176,7 +179,7 @@ function init() {
 
   for(var i=1 ; i < 12; i+=2) {
     var renderMesh2 = new THREE.Mesh(renderPlane,planeMaterial);
-    renderMesh2.position.z = -800;
+    renderMesh2.position.z = -1400+i;
     //renderMesh2.rotation.x = Math.PI;
     renderMesh2.rotation.z = Math.PI;
     var center_x = 5.41*box_size*Math.cos(i*Math.PI/6);
@@ -189,7 +192,7 @@ function init() {
 
   for(var i=0 ; i < 6; i+=1) {
     var renderMesh2 = new THREE.Mesh(renderPlane,planeMaterial);
-    renderMesh2.position.z = -800;
+    renderMesh2.position.z = -1500 + i;
     renderMesh2.rotation.x = Math.PI;
     var center_x = 1.73*5.41*box_size*Math.cos(i*Math.PI/3);
     var center_y = 1.73*5.41*box_size*Math.sin(i*Math.PI/3);
@@ -201,7 +204,18 @@ function init() {
 
   var three_div = document.getElementById("three");
   three_div.appendChild( renderer.domElement );
-  document.addEventListener("keydown", keyDownFullscreen, false);
+  fs.addFullScreenControl(renderer.domElement,renderWidth,renderHeight,function(w,h) {
+     camera.left = -w / 2;
+     camera.right =  w / 2;
+     camera.top = h / 2;
+     camera.bottom = -h / 2;
+
+     camera.updateProjectionMatrix();
+     var old_size = renderer.getSize();
+     renderer.setSize( w, h );
+     update_scale(h/old_size.height);
+  });
+  //document.addEventListener("keydown", keyDownFullscreen, false);
   three_div.addEventListener("click", getColors, false);
 } 
 
@@ -470,63 +484,13 @@ function update_scale(factor) {
   }
 }
 
-//https://davidwalsh.name/fullscreen
-function launchIntoFullscreen(element) {
-  if(element.requestFullscreen) {
-    element.requestFullscreen();
-  } else if(element.webkitRequestFullscreen) {
-    element.webkitRequestFullscreen();
-  } else if(element.mozRequestFullScreen) {
-    element.mozRequestFullScreen();
-  } else if(element.msRequestFullscreen) {
-    element.msRequestFullscreen();
-  }
-}
-
-//http://stackoverflow.com/questions/8796988/binding-multiple-events-to-a-listener-without-jquery
-function addListenerMulti(el, s, fn) {
-  var evts = s.split(' ');
-  for (var i=0, iLen=evts.length; i<iLen; i++) {
-    el.addEventListener(evts[i], fn, false);
-  }
-};
-
-addListenerMulti(document,'webkitfullscreenchange mozfullscreenchange fullscreenchange', function(e) {
-    console.log('fullscreenchange event!');
-    if (!three_fullscreen) {
-        console.log('not fullscreen');
-
-        camera.left = -screen.width / 2;
-        camera.right =  screen.width / 2;
-        camera.top = screen.height / 2;
-        camera.bottom = -screen.height / 2;
-
-        camera.updateProjectionMatrix();
-        renderer.setSize( screen.width, screen.height );
-        update_scale(screen.height/renderHeight);
-        three_fullscreen = true;
-    } else {
-        console.log('fullscreen');
-
-        camera.left = -renderWidth / 2;
-        camera.right =  renderWidth / 2;
-        camera.top = renderHeight / 2;
-        camera.bottom = -renderHeight / 2;
-
-        camera.updateProjectionMatrix();
-        renderer.setSize( renderWidth, renderHeight );
-        update_scale(renderHeight/screen.height);
-        three_fullscreen = false;
-    }
-} );
-
 
 function keyDownFullscreen(e) {
   var keyCode = e.keyCode;
-  if(keyCode==70) {
-    var three_div = document.getElementById("three");
-    launchIntoFullscreen(three_div);
-  }
+//  if(keyCode==70) {
+//    var three_div = document.getElementById("three");
+//    launchIntoFullscreen(three_div);
+//  }
 
 /*
   //angle1
@@ -671,4 +635,6 @@ inspired by <a href="https://www.instagram.com/p/BNLt7bJDfUJ/">regolo54</a>.<br>
 <small>
 updates:<br>
 2016-12-04: added transparency<br>
-2016-12-05: fine tuning</small></div>
+2016-12-05: fine tuning<br>
+2016-12-09: new fullscreen controls; fix clipping on android
+</small></div>

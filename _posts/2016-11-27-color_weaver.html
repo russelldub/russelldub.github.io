@@ -6,6 +6,7 @@ categories: experiments
 custom_js:
   - p5/p5.min.js
   - p5/addons/p5.dom.js
+  - local/fs.js
 ---
 
 <script type="text/javascript">
@@ -49,6 +50,7 @@ function setup() {
   p5c = createCanvas(stdWidth, stdHeight, P2D);
   p5c.parent("p5");
 
+  fs.addFullScreenControl(p5c.elt,stdWidth,stdHeight,resizeCanvas);
   strokeWeight(10);
   getColors();
   noFill();
@@ -110,16 +112,17 @@ function getColors() {
   colors.splice(idxc,1);
 }
 
-function mouseClicked() {
+function touchEnded() {
    if(mouseX > 0
       && mouseX < width
       && mouseY > 0
       &&mouseY<height){
      getColors();
+     return false;
    }
 }
 
-function keyTyped() {
+function keyReleased() {
  if(mouseX > 0
     && mouseX < width
     && mouseY > 0
@@ -136,53 +139,20 @@ function keyTyped() {
         loop();
       }
     }
-    if(key === "F") {
-      var p5div = document.getElementById("p5");
-      launchIntoFullscreen(p5div);
-    }
+    return false;
   }
 }
-
-//https://davidwalsh.name/fullscreen
-function launchIntoFullscreen(element) {
-  if(element.requestFullscreen) {
-    element.requestFullscreen();
-  } else if(element.webkitRequestFullscreen) {
-    element.webkitRequestFullscreen();
-  } else if(element.mozRequestFullScreen) {
-    element.mozRequestFullScreen();
-  } else if(element.msRequestFullscreen) {
-    element.msRequestFullscreen();
-  }
-}
-
-//http://stackoverflow.com/questions/8796988/binding-multiple-events-to-a-listener-without-jquery
-function addListenerMulti(el, s, fn) {
-  var evts = s.split(' ');
-  for (var i=0, iLen=evts.length; i<iLen; i++) {
-    el.addEventListener(evts[i], fn, false);
-  }
-};
-
-addListenerMulti(document,'webkitfullscreenchange mozfullscreenchange fullscreenchange', function(e) {
-    console.log('fullscreenchange event!');
-    if (!p5fullscreen) {
-        console.log('not fullscreen');
-        resizeCanvas(screen.width,screen.height);
-        p5fullscreen = true;
-    } else {
-        console.log('fullscreen');
-        resizeCanvas(stdWidth,stdHeight);
-        p5fullscreen = false;
-    }
-} );
 </script>
 
 <div id="p5"></div>
 <div><span id="lines_slider"></span># of lines</div>
 <div><span id="speed_slider"></span>speed</div>
 
-<div id="text">click to change colors<br>press "P" to pause/resume<br>press "S" to save current frame<br>press "F" to go fullscreen</div>
+<div id="text">click to change colors<br>press "P" to pause/resume<br>press "S" to save current frame</div>
 <div id="text">inspired by <a href="http://low-sugar-eye-candy.tumblr.com/post/153611226383/woven-iv">low sugar eye candy</a></div>
 <div id="colourloverlink"></div>
-<div id="update"></div>
+<div id="update">
+<small>
+2016-12-09: new fullscreen controls
+</small>
+</div>

@@ -6,6 +6,7 @@ categories: experiments
 custom_js:
   - three/three.min.js
   - three/OBJLoader.js
+  - local/fs.js
 ---
 
 <script id="vertexShader" type="x-shader/x-vertex">
@@ -132,6 +133,11 @@ function init() {
 
   var three_div = document.getElementById("three");
   three_div.appendChild( renderer.domElement );
+  fs.addFullScreenControl(renderer.domElement,renderWidth,renderHeight,function(w,h) {
+     camera.aspect = w / h;
+     camera.updateProjectionMatrix();
+     renderer.setSize( w, h );
+  });
   renderer.setSize( renderWidth, renderHeight );
 } 
 

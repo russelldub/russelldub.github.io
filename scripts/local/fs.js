@@ -24,7 +24,7 @@ var fs = {
 //    fs_icon_elem.style.color = "white";
     fs_icon_elem.style.position = "relative";
     fs_icon_elem.style.float = "right";
-    fs_icon_elem.style.top = "24px";
+//    fs_icon_elem.style.top = "24px";
 //    fs_icon_elem.style.zIndex = "-1";
     element.parentElement.appendChild(fs_icon_elem);
     element.parentElement.style.width = width+"px"
