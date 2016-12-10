@@ -1,6 +1,4 @@
 var fs = {
-  width: 0,
-  height: 0,
   fs_elements: {},
 
   //launchIntoFullscreen(p5div);
@@ -18,8 +16,6 @@ var fs = {
   },
 
   addFullScreenControl: function(element, width, height, callback)  {
-    fs.width = width;
-    fs.height = height;
     fs.fs_elements[element] = {toggle: false, width: width, height: height, callback: callback}
 
     var fs_icon_elem = document.createElement("i");
@@ -49,17 +45,14 @@ var fs = {
               //fs.fs_elements[element_keys[i]].callback(screen.width,screen.height);
 	      var width = window.outerWidth;
 	      var height = window.outerHeight;
-	      if(width > height) {
+//	      if(width > height) {
                 fs.fs_elements[element_keys[i]].callback(width,height);
-	      } else {
-                fs.fs_elements[element_keys[i]].callback(height,width);
-	      }
+//	      } else {
+ //               fs.fs_elements[element_keys[i]].callback(height,width);
+//	      }
               alert("width: " + window.outerWidth + " height: " + window.outerHeight);
               fs.fs_elements[element_keys[i]].toggle = false;
-              fs.width = width;
-              fs.height = height;
           } else { 
-	      console.log(fs.fs_elements);
               var width = fs.fs_elements[element_keys[i]].width;
               var height = fs.fs_elements[element_keys[i]].height;
               fs.fs_elements[element_keys[i]].callback(width,height);
