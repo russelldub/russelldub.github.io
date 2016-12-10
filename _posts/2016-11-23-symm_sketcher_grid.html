@@ -41,11 +41,12 @@ function preload() {
 function setup() {
   p5c = createCanvas(origWidth, origHeight);
   p5c.parent("p5");
-  fs.addFullScreenControl(p5c.parent(),origWidth,origHeight,resizeCanvas);
+  fs.addFullScreenControl(p5c.elt,origWidth,origHeight,resizeCanvas);
   noLoop();
 }
 
 function draw() {
+  //resizeCanvas(fs.width,fs.height);
   grid_size = width/8;
   strokeWeight(width/800);
   getColors();

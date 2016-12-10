@@ -1,4 +1,6 @@
 var fs = {
+  width: 0,
+  height: 0,
   fs_elements: {},
 
   //launchIntoFullscreen(p5div);
@@ -16,6 +18,8 @@ var fs = {
   },
 
   addFullScreenControl: function(element, width, height, callback)  {
+    fs.width = width;
+    fs.height = height;
     fs.fs_elements[element] = {toggle: false, width: width, height: height, callback: callback}
 
     var fs_icon_elem = document.createElement("i");
@@ -26,9 +30,9 @@ var fs = {
     fs_icon_elem.style.float = "right";
 //    fs_icon_elem.style.top = "-24px";
 //    fs_icon_elem.style.zIndex = "-1";
-    element.appendChild(fs_icon_elem);
-    element.style.width = width+"px"
-    element.style.height = height+"px"
+    element.parentElement.appendChild(fs_icon_elem);
+    element.parentElement.style.width = width+"px"
+    element.parentElement.style.height = height+"px"
 
     //http://stackoverflow.com/questions/8796988/binding-multiple-events-to-a-listener-without-jquery
     function addListenerMulti(el, s, fn) {
@@ -52,6 +56,8 @@ var fs = {
 	      }
               alert("width: " + window.outerWidth + " height: " + window.outerHeight);
               fs.fs_elements[element_keys[i]].toggle = false;
+              fs.width = width;
+              fs.height = height;
           } else { 
 	      console.log(fs.fs_elements);
               var width = fs.fs_elements[element_keys[i]].width;
