@@ -84,7 +84,7 @@ function randomBezier(pts) {
      y4 = random(-grid_size/2,grid_size/2);
      idx = int(random(colors.length));
      c = colors[idx];
-   } else { 
+   } else {
      x1 = pts[0];
      y1 = pts[1];
      x2 = pts[2];
@@ -118,19 +118,20 @@ function getColors() {
     var palette_link_div=select("#colourloverlink");
     palette_link = palette_JSON[idxp]['url'];
     palette_link_div.html("<a href=\"" + palette_link + "\">\"" + palette_JSON[idxp]['title'] + "\" palette</a> from <a href=\"http://www.colourlovers.com/\">colour lovers</a>");
-    
   }
 }
-function mouseReleased() {
+
+function touchEnded() {
    if(mouseX > 0
       && mouseX < width
       && mouseY > 0
       &&mouseY<height){
      draw();
+     return false;
    }
 }
 
-function keyTyped() {
+function keyReleased() {
    if(mouseX > 0
       && mouseX < width
       && mouseY > 0
@@ -138,6 +139,7 @@ function keyTyped() {
     if(key === "S") {
       saveCanvas("s"+int(random(9999)),"png");
     }
+    return false;
   }
 }
 </script>
@@ -153,4 +155,5 @@ function keyTyped() {
 <div id="updates"><small>
 update 2016-11-24: add background color<br>
 update 2016-12-09: add fullscreen<br>
+update 2016-12-09: fix fullscreen on mobile<br>
 </small></div>

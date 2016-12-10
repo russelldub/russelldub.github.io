@@ -16,7 +16,7 @@ var fs = {
   },
 
   addFullScreenControl: function(element, width, height, callback)  {
-    fs.fs_elements[element] = {toggle: false, width: width, height: height, callback: callback}
+    fs.fs_elements[element] = {toggle: false, fullscreen: false, width: width, height: height, callback: callback}
 
     var fs_icon_elem = document.createElement("i");
     fs_icon_elem.setAttribute("class", "fa fa-arrows-alt");
@@ -42,17 +42,24 @@ var fs = {
         element_keys=Object.keys(fs.fs_elements);
 	for(var i = 0 ; i < element_keys.length; ++i) {
           if(fs.fs_elements[element_keys[i]].toggle) {
-              //fs.fs_elements[element_keys[i]].callback(screen.width,screen.height);
-	      var width = window.outerWidth;
-	      var height = window.outerHeight;
-//	      if(width > height) {
-                fs.fs_elements[element_keys[i]].callback(width,height);
-//	      } else {
- //               fs.fs_elements[element_keys[i]].callback(height,width);
-//	      }
-              alert("width: " + window.outerWidth + " height: " + window.outerHeight);
+              fs.fs_elements[element_keys[i]].callback(screen.width,screen.height);
               fs.fs_elements[element_keys[i]].toggle = false;
-          } else { 
+              fs.fs_elements[element_keys[i]].fullscreen = true;
+          } else {
+              var width = fs.fs_elements[element_keys[i]].width;
+              var height = fs.fs_elements[element_keys[i]].height;
+              fs.fs_elements[element_keys[i]].callback(width,height);
+              fs.fs_elements[element_keys[i]].fullscreen = false;
+          }
+        }
+    } );
+
+    addListenerMulti(window,'webkitorientationchange mozorientationchange orientationchange', function(event) {
+        element_keys=Object.keys(fs.fs_elements);
+	for(var i = 0 ; i < element_keys.length; ++i) {
+          if(fs.fs_elements[element_keys[i]].fullscreen) {
+              fs.fs_elements[element_keys[i]].callback(screen.width,screen.height);
+          } else {
               var width = fs.fs_elements[element_keys[i]].width;
               var height = fs.fs_elements[element_keys[i]].height;
               fs.fs_elements[element_keys[i]].callback(width,height);
