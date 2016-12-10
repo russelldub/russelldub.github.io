@@ -39,20 +39,16 @@ var fs = {
     };
 
     addListenerMulti(document,'webkitfullscreenchange mozfullscreenchange fullscreenchange', function(event) {
-        console.log("even fired!");	
         element_keys=Object.keys(fs.fs_elements);
 	for(var i = 0 ; i < element_keys.length; ++i) {
           if(fs.fs_elements[element_keys[i]].toggle) {
-	      console.log("go big.");
-              fs.fs_elements[element_keys[i]].callback(screen.width,screen.height);
+              //fs.fs_elements[element_keys[i]].callback(screen.width,screen.height);
+              fs.fs_elements[element_keys[i]].callback(window.outerWidth,window.outerHeight);
               fs.fs_elements[element_keys[i]].toggle = false;
           } else { 
-	      console.log("go home.");
 	      console.log(fs.fs_elements);
               var width = fs.fs_elements[element_keys[i]].width;
               var height = fs.fs_elements[element_keys[i]].height;
-	      console.log("%d, %d",width,height);
-	      //resizeCanvas(width,height);
               fs.fs_elements[element_keys[i]].callback(width,height);
           }
         }
