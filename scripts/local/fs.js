@@ -50,6 +50,7 @@ var fs = {
 	      } else {
                 fs.fs_elements[element_keys[i]].callback(height,width);
 	      }
+              alert("width: " + window.outerWidth + " height: " + window.outerHeight);
               fs.fs_elements[element_keys[i]].toggle = false;
           } else { 
 	      console.log(fs.fs_elements);
