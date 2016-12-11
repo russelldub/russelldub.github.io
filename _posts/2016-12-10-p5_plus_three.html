@@ -1,0 +1,189 @@
+---
+layout: post
+title:  "p5+three"
+date:   2016-12-10 21:24:00
+categories: experiments
+custom_js:
+  - p5/p5.min.js
+  - three/three.min.js
+  - local/fs.js
+---
+
+<script type="text/javascript">
+var palette_JSON = [];
+var colors_pre = ['rgb(58, 177, 162)',
+          'rgb(196, 83, 83)',
+          'rgb(37, 68, 48)',
+          'rgb(182, 197, 103)',
+          'rgb(112, 149, 143)',
+          'rgb(42, 42, 42)'];
+var colors = colors_pre;
+
+var pg;
+
+function preload() {
+  palette_JSON=loadJSON("/assets/colour_lovers_top40.json");
+}
+
+function setup() {
+  noCanvas();
+  noLoop()
+
+  pg = createGraphics(512,512);
+
+  getColors();
+  init_three();
+  animate_three();
+}
+
+function p5_draw() {
+  radius = random(40,80);
+  x = random(0,pg.width);
+  y = random(0,pg.height);
+  c = colors[int(random(0,colors.length))];
+
+  pg.fill(c);
+  pg.ellipse(x,y,radius);
+}
+
+function getColors() {
+  if(palette_JSON.length === 0) {
+    colors = colors_pre;
+  } else {
+    palette_keys=Object.keys(palette_JSON);
+    idxp = int(random(palette_keys.length));
+    palette = palette_JSON[palette_keys[idxp]];
+    colors = [];
+    for(var i = 0;  i < palette["colors"].length; ++i) {
+      cc = color("#"+ palette['colors'][i]);
+      cc._array[3] = 0.8;
+      colors.push(cc);
+    }
+    
+    var palette_link_div=document.getElementById("colourloverlink");
+    palette_link = palette_JSON[idxp]['url'];
+    palette_link_div.innerHTML = "<a href=\"" + palette_link + "\">\"" + palette_JSON[idxp]['title'] + "\" palette</a> from <a href=\"http://www.colourlovers.com/\">colour lovers</a>";
+    if(pg) pg.background(42);
+  }
+}
+
+
+var camera, scene, renderer;
+var renderWidth = 800;
+var renderHeight = 450;
+var texture;
+var cube;
+
+function init_three() {
+  texture = new THREE.Texture(pg.elt);
+
+  camera = new THREE.PerspectiveCamera(70, renderWidth/renderHeight, 1, 10000 );
+  camera.position.z = 300;
+  scene = new THREE.Scene();
+
+  var ambient = new THREE.AmbientLight( 0xffffff );
+  scene.add( ambient );
+
+  //preserveDrawingBuffer to be able to save image
+  renderer = new THREE.WebGLRenderer({});
+  renderer.setPixelRatio( window.devicePixelRatio );
+  renderer.setSize( renderWidth, renderHeight );
+
+  var p5material = new THREE.MeshPhysicalMaterial( {
+    map: texture,
+    color: 0xffffff,
+    metalness: 0.0,
+    roughness: 0,
+    opacity: 0.85,
+    side: THREE.DoubleSide,
+    transparent: true,
+    shading: THREE.SmoothShading,
+    envMapIntensity: 5,
+    premultipliedAlpha: true
+  } );
+
+  var cube_geom = new THREE.BoxBufferGeometry(200,200,200);
+  cube = new THREE.Mesh(cube_geom,p5material);
+  cube.position.z = -100;
+  scene.add(cube);
+
+  var three_div = document.getElementById("three");
+  three_div.appendChild( renderer.domElement );
+  fs.addFullScreenControl(renderer.domElement,renderWidth,renderHeight,function(w,h) {
+     camera.aspect = w/h;
+     camera.updateProjectionMatrix();
+     var old_size = renderer.getSize();
+     renderer.setSize( w, h );
+  });
+  document.addEventListener("keydown", screenshotListener, false);
+  three_div.addEventListener("click", getColors, false);
+} 
+
+function animate_three() {
+  p5_draw();
+  texture.needsUpdate = true;
+  cube.rotation.x += 0.01;
+  cube.rotation.y += 0.02;
+
+  //limit frame rate
+  setTimeout( function() {
+      requestAnimationFrame( animate_three );
+  }, 1000.0 / 30.0 );
+  render();
+}
+
+function render() {
+  renderer.render( scene, camera );
+}
+
+function screenshotListener(e) {
+   //Listen to 's' key
+   if(e.which !== 83) return false;
+   try {
+     saveAsImage();
+     return false;
+   } 
+   catch(e) {
+       console.log("Browser does not support taking screenshot of 3d context");
+       return;
+   }
+}
+
+//http://stackoverflow.com/a/26197858
+function saveAsImage() {
+    var imgData, imgNode;
+    try {
+        var strMime = "image/png";
+        renderer.render( scene, camera );
+        imgData = renderer.domElement.toDataURL(strMime);
+        saveFile(imgData, "s"+int(random(9999))+".png");
+    } catch (e) {
+        console.log(e);
+        return;
+    }
+}
+
+var saveFile = function (strData, filename) {
+    var link = document.createElement('a');
+    if (typeof link.download === 'string') {
+        document.body.appendChild(link); //Firefox requires the link to be in the body
+        link.download = filename;
+        link.href = strData;
+        link.click();
+        document.body.removeChild(link); //remove the link when done
+    } else {
+        location.replace(uri);
+    }
+}
+
+</script>
+
+<div id="three"></div>
+<div id="text">
+click to change colors<br>press "S" to save current frame<br>
+</div>
+<div id="colourloverlink"></div>
+<div id="update">
+<small>
+</small>
+</div>
