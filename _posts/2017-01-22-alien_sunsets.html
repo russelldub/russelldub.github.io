@@ -1,0 +1,550 @@
+---
+layout: post
+title:  "alien sunsets"
+date:   2017-01-22 13:52:00
+categories: experiments
+custom_js:
+  - p5/p5.min.js
+  - p5/addons/p5.dom.js
+  - local/fs.js
+---
+
+
+<script id="2d-vertex-shader" type="x-shader/x-vertex">
+attribute vec2 a_position;
+attribute vec2 a_texCoord;
+
+uniform vec2 u_resolution;
+uniform float u_flipY;
+varying vec2 v_texCoord;
+
+void main() {
+   // convert from pixel space to clip space
+   vec2 clipSpace = 2.0*a_position / u_resolution - 1.0;
+   gl_Position = vec4(clipSpace * vec2(1, u_flipY), 0, 1);
+   v_texCoord = a_texCoord;
+}
+</script>
+
+<script id="2d-texture-fragment-shader" type="x-shader/x-fragment">
+precision mediump float;
+precision mediump int;
+
+uniform sampler2D texture;
+varying vec2 v_texCoord;
+
+void main(void) {
+  gl_FragColor = texture2D(texture, v_texCoord);
+}
+</script>
+
+<script id="2d-water-fragment-shader" type="x-shader/x-fragment">
+//Adapted from: https://www.shadertoy.com/view/Xll3R7
+precision mediump float;
+precision mediump int;
+
+uniform sampler2D texture;
+varying vec2 v_texCoord;
+uniform float u_global_time;
+
+void main(void) {
+  if (v_texCoord.y < 0.5)// is air - no reflection or effect
+  {
+    gl_FragColor = texture2D(texture, v_texCoord);
+  }
+  else
+  {
+    // Compute the mirror effect.
+    float xoffset = 0.015*cos(u_global_time*3.0+30.0*(v_texCoord.y))*(v_texCoord.y-0.5)*(v_texCoord.y-0.5);
+    float yoffset = ((0.5 + v_texCoord.y)/0.5) * 0.015*(1.0+cos(u_global_time*2.0+30.0*(-v_texCoord.y)));
+    vec4 color = texture2D(texture, vec2(v_texCoord.x + xoffset,  v_texCoord.y + yoffset));
+    gl_FragColor = color;
+  }
+}
+</script>
+
+<script id="2d-blur-x-fragment-shader" type="x-shader/x-fragment">
+precision mediump float;
+precision mediump int;
+
+uniform sampler2D texture;
+uniform vec2 u_textureSize;
+varying vec2 v_texCoord;
+uniform vec2 u_scale;
+
+void main(void) {
+  float weight[5];
+  weight[0] =  0.227027;
+  weight[1] =  0.1945946;
+  weight[2] =  0.1216216;
+  weight[3] =  0.054054;
+  weight[4] =  0.016216;
+  vec2 onePixel = vec2(1.0, 1.0) / u_textureSize;
+  float alpha = texture2D(texture, v_texCoord).a;
+
+  vec3 result = texture2D(texture, v_texCoord).rgb * weight[0];
+  for(int i = 1; i < 5; ++i)
+  {
+    result += texture2D(texture, v_texCoord + vec2(onePixel.x * float(i)*u_scale.x, 0.0)).rgb * weight[i];
+    result += texture2D(texture, v_texCoord - vec2(onePixel.x * float(i)*u_scale.x, 0.0)).rgb * weight[i];
+  }
+  gl_FragColor = vec4(result, alpha);
+}
+</script>
+
+<script id="2d-blur-y-fragment-shader" type="x-shader/x-fragment">
+precision mediump float;
+precision mediump int;
+
+uniform sampler2D texture;
+uniform vec2 u_textureSize;
+varying vec2 v_texCoord;
+uniform vec2 u_scale;
+
+void main(void) {
+  float weight[5];
+  weight[0] =  0.227027;
+  weight[1] =  0.1945946;
+  weight[2] =  0.1216216;
+  weight[3] =  0.054054;
+  weight[4] =  0.016216;
+  vec2 onePixel = vec2(1.0, 1.0) / u_textureSize;
+  float alpha = texture2D(texture, v_texCoord).a;
+  vec3 result = texture2D(texture, v_texCoord).rgb * weight[0];
+  for(int i = 1; i < 5; ++i)
+  {
+    result += texture2D(texture, v_texCoord + vec2(0.0, onePixel.y * float(i)*u_scale.y)).rgb * weight[i];
+    result += texture2D(texture, v_texCoord - vec2(0.0, onePixel.y * float(i)*u_scale.y)).rgb * weight[i];
+  }
+  gl_FragColor = vec4(result, alpha);
+}
+</script>
+
+<script>
+"use strict";
+var start_time = Date.now();
+var p5c;
+var canvas;
+var gl_canvas;
+
+var theta;
+var r_min;
+var r_max;
+
+var n_blur_loops = 1;
+var blur_slider;
+
+var enable_water_shader = true;
+var water_shader_checkbox;
+
+var MAX_COLORS = 20;
+var bgc;
+var colors;
+var palette_JSON = [];
+//https://coolors.co/3ab1a2-c45353-254430-b6c567-70958f
+var colors_pre = ['rgb(58, 177, 162)',
+          'rgb(196, 83, 83)',
+          'rgb(37, 68, 48)',
+          'rgb(182, 197, 103)',
+          'rgb(112, 149, 143)'];
+
+var stdWidth  = 800;
+var stdHeight = 450;
+
+function preload() {
+  palette_JSON=loadJSON("/assets/colour_lovers_top40.json");
+}
+
+var bars;
+var img;
+function setup() {
+  p5c = createCanvas(stdWidth,stdHeight);
+  p5c.elt.style.display = "none";
+
+  gl_canvas = document.getElementById("gl_canvas");
+  gl_canvas.width=stdWidth;
+  gl_canvas.height=stdHeight;
+  gl_canvas.addEventListener("click", getColors, false);
+  
+  fs.addFullScreenControl(gl_canvas,stdWidth,stdHeight,function(w,h) {
+     initialized=false;
+     resizeCanvas(w,h);
+  });
+  canvas =  p5c.elt;
+
+  getColors();
+  frameRate(30);
+
+  water_shader_checkbox = createCheckbox('water shader',enable_water_shader);
+  water_shader_checkbox.parent("water_shader_checkbox");
+  water_shader_checkbox.changed(function() { enable_water_shader = !enable_water_shader; });
+
+  blur_slider=createSlider(0,6,n_blur_loops,1);
+  blur_slider.parent("blur_slider");
+  blur_slider.style.right="0px";
+  n_blur_loops = blur_slider.value();
+
+  bars = []
+  for(var i = 0; i < 10; ++i)  {
+    bars.push(new Bar());
+  }
+}
+
+function Bar() {
+  this.speed = random(+0.6,+1.0);
+  this.h = height/2+random(0,height/2);
+  this.width = random(8,12);
+  this.orig_canvas_height = height;
+
+  this.move = function() {
+    var scale = height/this.orig_canvas_height;
+    var s = this.speed*scale;
+    this.h += s;
+    if(this.h*scale > height) {
+      this.h = height/scale/2;
+    }
+  }
+  this.draw = function(pg) {
+    var scale = height/this.orig_canvas_height;
+    var h = this.h*scale;
+    var w = this.width*scale;
+    if(pg) {
+      pg.rect(0,h,width,w);
+    } else {
+      rect(0,h,width,w);
+    }
+  }
+}
+
+var initialized = false;
+function draw() {
+  n_blur_loops = blur_slider.value();
+
+  noStroke();
+  //sky
+  fill(colors[0]);
+  rect(0,0,width,height/2);
+  //sea
+  fill(colors[1]);
+  rect(0,height/2,width,height/2);
+  //lower sun
+  fill(colors[2]);
+  arc(width/2,height/2,height*0.8,height*0.8,0,PI);
+  //upper sun
+  fill(colors[2]);
+  arc(width/2,height/2,height*0.8,height*0.8,PI,TWO_PI);
+  //waves
+  fill(colors[1]);
+  for(var i = 0; i < bars.length; ++i)
+  {
+    bars[i].move();
+    bars[i].draw();
+  }
+
+  if(!initialized) {
+    initialized = true;
+    setup_shaders(canvas,gl_canvas);
+  }
+  draw_shaders(canvas,gl_canvas);
+}
+
+function getColors() {
+  if(palette_JSON.length === 0) {
+    colors = colors_pre;
+  } else {
+    var palette_keys=Object.keys(palette_JSON);
+    var idxp = int(random(palette_keys.length));
+    var palette = palette_JSON[palette_keys[idxp]];
+    colors = [];
+    for(var i = 0;  i < palette["colors"].length; ++i) {
+      var cc = color("#"+ palette['colors'][i]);
+      //cc._array[3] = 0.8;
+      colors.push(cc);
+    }
+    colors[2]._array[3] = 0.8;
+    //colors[3]._array[3] = 0.5;
+    
+    var palette_link_div=select("#colourloverlink");
+    var palette_link = palette_JSON[idxp]['url'];
+    palette_link_div.html("<a href=\"" + palette_link + "\">\"" + palette_JSON[idxp]['title'] + "\" palette</a> from <a href=\"http://www.colourlovers.com/\">colour lovers</a>");
+    
+  }
+  //var idxc = int(random(colors.length));
+  //bgc = colors[idxc];
+  //bgc._array[3] = 1.0;
+  //colors.splice(idxc,1);
+}
+
+
+function createShader(gl, type, elem) {
+  var source = document.getElementById(elem).text;
+  var shader = gl.createShader(type);
+  gl.shaderSource(shader, source);
+  gl.compileShader(shader);
+  var success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
+  if (success) {
+    return shader;
+  }
+ 
+  console.log(gl.getShaderInfoLog(shader));
+  gl.deleteShader(shader);
+}
+
+var createProgram = function(gl, vertex_shader, fragment_shader) {
+      var shaderScript;
+      var shaderSource;
+      var vertexShader;
+      var fragmentShader;
+
+      vertexShader = createShader(gl, gl.VERTEX_SHADER, vertex_shader);
+      fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragment_shader);
+      if(!vertexShader || !fragmentShader) {
+        console.log("Failed to create shaders.");
+        return;
+      }
+
+      var program = gl.createProgram();
+      gl.attachShader(program, vertexShader);
+      gl.attachShader(program, fragmentShader);
+      gl.linkProgram(program);    
+
+      gl.useProgram(program);
+      return program;
+}
+
+var gl;
+var programs;
+var originalImageTexture;
+var textures;
+var framebuffers;
+var positionBuffer;
+var texCoordBuffer;
+var water_program;
+var blurx_program;
+var blury_program;
+var passthru_program;
+
+function setup_shaders(canvas,gl_canvas) {
+  console.log('SETUP SHADERS!' + canvas.width + " " + canvas.height );
+  gl = gl_canvas.getContext("webgl");
+  if (!gl) {
+    console.log("NO GL");
+    return;
+  }
+
+  // create 2 textures and attach them to framebuffers.
+  textures = [];
+  framebuffers = [];
+  for (var ii = 0; ii < 2; ++ii) {
+    var texture = createAndSetupTexture(gl);
+    textures.push(texture);
+
+    // make the texture the same size as the canvas 
+    gl.texImage2D(
+        gl.TEXTURE_2D, 0, gl.RGBA, canvas.width/2, canvas.height/2, 0,
+        gl.RGBA, gl.UNSIGNED_BYTE, null);
+
+    // Create a framebuffer
+    var fbo = gl.createFramebuffer();
+    framebuffers.push(fbo);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+
+    // Attach a texture to it.
+    gl.framebufferTexture2D(
+        gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+  }
+
+  // Create a buffer to put three 2d clip space points in
+  positionBuffer = gl.createBuffer();
+
+  // provide texture coordinates for the rectangle.
+  texCoordBuffer = gl.createBuffer();
+
+  originalImageTexture = createAndSetupTexture(gl);
+
+  // setup GLSL program
+  water_program = createProgram(gl, "2d-vertex-shader", "2d-water-fragment-shader") 
+  blurx_program = createProgram(gl, "2d-vertex-shader", "2d-blur-x-fragment-shader") 
+  blury_program = createProgram(gl, "2d-vertex-shader", "2d-blur-y-fragment-shader") 
+  passthru_program = createProgram(gl, "2d-vertex-shader", "2d-texture-fragment-shader");
+
+}
+
+
+function draw_shaders(canvas,gl_canvas) {
+  programs = [];
+  if(enable_water_shader) programs.push(water_program);
+  for(var i = 0; i < n_blur_loops; ++i)  {
+     programs.push(blurx_program);
+     programs.push(blury_program);
+  }
+  programs.push(passthru_program);
+
+  //console.log('DRAW SHADERS!' + canvas.width + " " + canvas.height );
+  gl.canvas.width = canvas.width/2;
+  gl.canvas.height = canvas.height/2;
+  //resizeGLCanvas(canvas);
+  gl.viewport(0, 0, canvas.width/2, canvas.height/2);
+
+  //Update buffers
+  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+  setRectangle( gl, 0, 0, canvas.width/2,canvas.height/2);
+  gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+  setRectangle( gl, 0, 0, 1, 1);
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffers[1]);
+  // Clear the canvas
+  gl.clearColor(0, 0, 0, 0);
+  gl.clear(gl.COLOR_BUFFER_BIT); 
+
+  // start with the original canvas
+  gl.bindTexture(gl.TEXTURE_2D, originalImageTexture);
+  //gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, gl.canvas);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+
+  for(var ii = 0; ii < programs.length; ++ii) {
+    // Tell it to use our program (pair of shaders)
+    gl.useProgram(programs[ii]);
+
+    // look up where the vertex data needs to go.
+    var positionLocation = gl.getAttribLocation(programs[ii], "a_position");
+    var texCoordLocation = gl.getAttribLocation(programs[ii], "a_texCoord");
+
+    // lookup uniforms
+    var resolutionLocation = gl.getUniformLocation(programs[ii], "u_resolution");
+    var textureSizeLocation = gl.getUniformLocation(programs[ii], "u_textureSize");
+    var flipYLocation = gl.getUniformLocation(programs[ii], "u_flipY");
+    var scaleLocation = gl.getUniformLocation(programs[ii], "u_scale");
+    var blur_color1Location = gl.getUniformLocation(programs[ii], "blur_color1");
+    var blur_color2Location = gl.getUniformLocation(programs[ii], "blur_color2");
+    var global_timeLocation = gl.getUniformLocation(programs[ii], "u_global_time");
+
+    // Turn on the teccord attribute
+    gl.enableVertexAttribArray(texCoordLocation);
+
+    // Bind the position buffer.
+    gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+
+    // Tell the position attribute how to get data out of positionBuffer (ARRAY_BUFFER)
+    var size = 2;          // 2 components per iteration
+    var type = gl.FLOAT;   // the data is 32bit floats
+    var normalize = false; // don't normalize the data
+    var stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
+    var offset = 0;        // start at the beginning of the buffer
+    gl.vertexAttribPointer(
+        texCoordLocation, size, type, normalize, stride, offset)
+
+    // set the size of the canvas
+    gl.uniform2f(textureSizeLocation, canvas.width/2, canvas.height/2);
+
+    // Turn on the position attribute
+    gl.enableVertexAttribArray(positionLocation);
+
+    // Bind the position buffer.
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+
+    // Tell the position attribute how to get data out of positionBuffer (ARRAY_BUFFER)
+    var size = 2;          // 2 components per iteration
+    var type = gl.FLOAT;   // the data is 32bit floats
+    var normalize = false; // don't normalize the data
+    var stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
+    var offset = 0;        // start at the beginning of the buffer
+    gl.vertexAttribPointer(
+        positionLocation, size, type, normalize, stride, offset)
+
+    // don't y flip images while drawing to the textures
+    gl.uniform1f(flipYLocation, 1);
+
+    gl.uniform2f(scaleLocation, gl.canvas.width/stdWidth, gl.canvas.height/stdHeight);
+
+    gl.uniform3f(blur_color1Location, colors[0]._array[0], colors[0]._array[1], colors[0]._array[2]);
+    gl.uniform3f(blur_color2Location, colors[1]._array[0], colors[1]._array[1], colors[1]._array[2]);
+    gl.uniform1f(global_timeLocation, 0.001*(Date.now()-start_time));
+
+    if(ii == programs.length-1) {
+      setFramebuffer(gl, null, resolutionLocation, canvas.width/2, canvas.height/2);
+      gl.uniform1f(flipYLocation, -1);
+    } else { 
+      setFramebuffer(gl, framebuffers[ii % 2], resolutionLocation, canvas.width/2, canvas.height/2);
+      gl.uniform1f(flipYLocation, 1);
+    }
+    drawKernel(gl);
+    gl.bindTexture(gl.TEXTURE_2D, textures[ii % 2]);
+  }
+}
+
+function drawKernel(gl) {
+  // Draw the rectangle.
+  var primitiveType = gl.TRIANGLES;
+  var offset = 0;
+  var count = 6;
+  gl.drawArrays(primitiveType, offset, count);
+}
+
+
+function createAndSetupTexture(gl) {
+  var texture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+
+  // Set up texture so we can render any size canvas and so we are
+  // working with pixels.
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  return texture;
+}
+
+
+function setFramebuffer(gl, fbo, resolutionLocation, width, height) {
+  // make this the framebuffer we are rendering to.
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  // Tell the shader the resolution of the framebuffer.
+  gl.uniform2f(resolutionLocation, width, height);
+  // Tell webgl the viewport setting needed for framebuffer.
+  gl.viewport(0, 0, width, height);
+}
+
+function setRectangle(gl, x, y, width, height) {
+  var x1 = x;
+  var x2 = x + width;
+  var y1 = y;
+  var y2 = y + height;
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+     x1, y1,
+     x2, y1,
+     x1, y2,
+     x1, y2,
+     x2, y1,
+     x2, y2,
+  ]), gl.STATIC_DRAW);
+}
+
+function resizeGLCanvas(canvas) {
+  // Lookup the size the browser is displaying the canvas.
+  var displayWidth  = canvas.clientWidth;
+  var displayHeight = canvas.clientHeight;
+ 
+  // Check if the canvas is not the same size.
+  if (canvas.width  != displayWidth ||
+      canvas.height != displayHeight) {
+ 
+    // Make the canvas the same size
+    canvas.width  = displayWidth;
+    canvas.height = displayHeight;
+  }
+}
+
+
+</script>
+
+<div id="p5"></div>
+<div id="gl"><canvas id='gl_canvas'></div>
+<div><span id="blur_slider"></span># blur loops</div>
+<div><span id="water_shader_checkbox"></span></div>
+<div id="text">
+click to change colors<br>
+p5.js + webgl shaders</div>
+<div id="colourloverlink"></div>
+
+
