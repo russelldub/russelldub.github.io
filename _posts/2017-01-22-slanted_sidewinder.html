@@ -1,0 +1,258 @@
+---
+layout: post
+title:  "slanted sidewinder"
+date:   2017-01-22 16:08:00
+categories: experiments
+custom_js:
+  - p5/p5.min.js
+  - p5/addons/p5.dom.js
+  - local/fs.js
+---
+
+<script type="text/javascript">
+var p5c;
+
+var outer_square = 0.8;
+
+var n_lines = 10;
+var lines_slider;
+
+var width_factor= 3.5;
+var width_slider;
+
+var speed = 5;
+var speed_slider;
+
+var colors;
+var bgc;
+var fgc;
+var palette_JSON = [];
+
+var stdWidth  = 450;
+var stdHeight = 450;
+
+var running = true;
+
+var global_pos = 0;
+
+var cycleLength = 1000;
+var lines = [];
+
+function preload() {
+  palette_JSON=loadJSON("/assets/colour_lovers_top40.json");
+}
+
+function setup() {
+  p5c = createCanvas(stdWidth, stdHeight);
+  p5c.parent("p5");
+  fs.addFullScreenControl(p5c.elt,stdWidth,stdHeight,resizeCanvas);
+
+  getColors();
+  frameRate(30);
+
+  width_slider=createSlider(1.25,10,width_factor,0.25);
+  width_slider.parent("width_slider");
+  width_slider.style.right="0px";
+  width_factor = width_slider.value();
+
+  speed_slider=createSlider(-10,10,speed,0.1);
+  speed_slider.parent("speed_slider");
+  speed_slider.style.right="0px";
+  speed = speed_slider.value();
+
+  lines_slider=createSlider(4,20,n_lines,2);
+  lines_slider.parent("slider");
+  lines_slider.style.right="0px";
+
+  rectMode(CENTER);
+}
+
+function Line() {
+  this.idx = 0;
+  this.width = 0.05;
+  this.pos   = 0;
+  this.lastFrame = frameCount;
+
+  this.update = function(_idx) {
+    this.idx = _idx;
+    this.pos = (this.idx / n_lines + (global_pos/cycleLength)) % 1.0;
+  }
+  this.show = function() {
+    push();
+    this.width = 1.0/(width_factor*n_lines);
+    var inner_square = outer_square*(1 - 2*(1-n_lines*this.width)/n_lines);
+    var ltx = -height*outer_square*0.5;
+    var lty = -height*outer_square*0.5;
+    var rtx = +height*outer_square*0.5;
+    var rty = -height*outer_square*0.5;
+    var lbx = -height*outer_square*0.5;
+    var lby = +height*outer_square*0.5;
+    var rbx = +height*outer_square*0.5;
+    var rby = +height*outer_square*0.5;
+    if(this.idx % 2 == 0) {
+      rtx = +height*inner_square*0.5;
+      rty = -height*inner_square*0.5;
+    } else {
+      lbx = -height*inner_square*0.5;
+      lby = +height*inner_square*0.5;
+    }
+
+    var pos_u = max(this.pos-this.width/2,0.0);
+    var pos_l = min(this.pos+this.width/2,1.0);
+    x0_u = ltx + pos_u*height*outer_square;
+    y0_u = lty + pos_u*height*outer_square;
+    if(pos_u < 0.5) {
+      x1 = lbx;
+      y2 = rty;
+      y1 = max(y0_u + (x0_u - x1),y2);
+      x2 = max(x0_u - (y2 - y0_u),x1);
+    } else {
+      y1 = lby;
+      x2 = rtx;
+      x1 = min(x0_u - (y1 - y0_u),x2);
+      y2 = min(y0_u - (x2 - x0_u),y1);
+    }
+    x0_l = ltx + pos_l*height*outer_square;
+    y0_l = lty + pos_l*height*outer_square;
+    if(pos_l < 0.5) {
+      x3 = lbx;
+      y4 = rty;
+      x4 = max(x0_l - (y2 - y0_l),x3);
+      y3 = max(y0_l + (x0_l - x1),y4);
+    } else {
+      y3 = lby;
+      x4 = rtx;
+      x3 = min(x0_l - (y3 - y0_l),x4);
+      y4 = min(y0_l - (x4 - x0_l),y3);
+    }
+//    fill(255,0,0);
+//    ellipse(x1,y1,5);
+//    fill(0,255,0);
+//    ellipse(x2,y2,5);
+//    fill(0,0,255);
+//    ellipse(x3,y3,5);
+//    fill(255,0,255);
+//    ellipse(x4,y4,5);
+    if(pos_l > 0.5 && pos_u < 0.5) {
+      xtc = rtx;
+      ytc = rty;
+      xbc = lbx;
+      ybc = lby;
+    } else {
+      xtc = x2;
+      ytc = y2;
+      xbc = x1;
+      ybc = y1;
+    }
+    fill(bgc);
+    noStroke();
+    beginShape();
+    vertex(x3,y3);
+    vertex(x4,y4);
+    vertex(xtc,ytc);
+    vertex(x2,y2);
+    vertex(x1,y1);
+    vertex(xbc,ybc);
+    endShape(CLOSE)
+    pop();
+  }
+}
+
+function draw() {
+  width_factor = width_slider.value();
+  speed = speed_slider.value();
+  n_lines = lines_slider.value();
+  global_pos = global_pos+speed;
+  if(global_pos > cycleLength) global_pos = 0;
+  if(global_pos < 0) global_pos = cycleLength;
+  background(bgc);
+
+  fill(fgc);
+  noStroke();
+  rect(width/2,height/2,height*0.8,height*0.8);
+
+  push()
+  translate(width/2,height/2);
+  for(var i = 0; i < n_lines; ++i) {
+    if(n_lines > lines.length) {
+      lines.push(new Line());
+    }
+    lines[i].update(i);
+    lines[i].show();
+  }
+  pop();
+}
+
+function getColors() {
+  if(palette_JSON.length === 0) {
+    colors = colors_pre;
+  } else {
+    palette_keys=Object.keys(palette_JSON);
+    idxp = int(random(palette_keys.length));
+    palette = palette_JSON[palette_keys[idxp]];
+    colors = [];
+    for(var i = 0;  i < palette["colors"].length; ++i) {
+      cc = color("#"+ palette['colors'][i]);
+      cc._array[3] = 0.8;
+      colors.push(cc);
+    }
+    
+    var palette_link_div=select("#colourloverlink");
+    palette_link = palette_JSON[idxp]['url'];
+    palette_link_div.html("<a href=\"" + palette_link + "\">\"" + palette_JSON[idxp]['title'] + "\" palette</a> from <a href=\"http://www.colourlovers.com/\">colour lovers</a>");
+    
+  }
+  var idxc = int(random(colors.length));
+  bgc = colors[idxc];
+  bgc._array[3] = 1.0;
+  colors.splice(idxc,1);
+  var idxc = int(random(colors.length));
+  fgc = colors[idxc];
+  fgc._array[3] = 1.0;
+  colors.splice(idxc,1);
+}
+
+function touchEnded() {
+   if(mouseX > 0
+      && mouseX < width
+      && mouseY > 0
+      &&mouseY<height){
+     getColors();
+     return false;
+   }
+}
+
+function keyReleased() {
+ if(mouseX > 0
+    && mouseX < width
+    && mouseY > 0
+    &&mouseY < height){
+    if(key === "S") {
+      saveCanvas("s"+int(random(9999)),"png");
+    }
+    if(key === "P") {
+      if(running) { 
+        running = false;
+        noLoop();
+      } else {
+        running = true;
+        loop();
+      }
+    }
+    return false;
+  }
+}
+
+</script>
+
+<div id="p5"></div>
+<div><span id="slider"></span># of lines</div>
+<div><span id="speed_slider"></span>speed</div>
+<div><span id="width_slider"></span>width</div>
+<div id="text">click to change colors<br>press "P" to pause/resume<br>press "S" to save current frame<br>
+inspired by <a href="http://www.dailyminimal.com/post/155856744114/ja17-822-a-new-geometric-design-every-day">daily minimal</a></div>
+<div id="colourloverlink"></div>
+<div id="update">
+<small>
+</small>
+</div>
