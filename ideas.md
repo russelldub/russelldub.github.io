@@ -1,0 +1,20 @@
+- Bobbin' and Weavin' 3D
+- waterman butterfly moon (solar system poster)
+- random bezier yule tree
+- Murmurations
+- Painterly effects
+- D3 Globe Projections
+- Animal models (3D fish scans)
+- iframe carousel of fullscreen apps
+- Penrose tilings
+- regolo54 islamic art drawing
+- 3d bezier curve jellyfish
+- smooth 10 print (http://www.grgrdvrt.com/sketches/183_stripes9)
+- snap.svg
+- mo.js fireworks
+- d3.js
+- http://fivethirtyeight.com/features/we-asked-you-to-visualize-your-podcast-listening-and-wow-did-you-deliver/
+- http://arstechnica.com/gadgets/2016/12/behold-the-greatest-spirographs-in-the-world/
+- https://www.youtube.com/watch?v=LaarVR1AOvs
+
+
