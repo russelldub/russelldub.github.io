@@ -5,6 +5,7 @@
 - Painterly effects
 - D3 Globe Projections
 - Animal models (3D fish scans)
+- argyle dance party better (animate transition / dotted lines)
 - iframe carousel of fullscreen apps
 - Penrose tilings
 - regolo54 islamic art drawing
