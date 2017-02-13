@@ -1,0 +1,245 @@
+---
+layout: post
+title:  "infinite q*bert"
+date:   2017-02-12 15:53:00
+categories: experiments
+custom_js:
+  - p5/p5.min.js
+  - p5/addons/p5.dom.js
+  - local/fs.js
+---
+
+<script type="text/javascript">
+"use strict";
+var colors;
+var color_offset=0;
+var palette_JSON = [];
+//https://coolors.co/3ab1a2-c45353-254430-b6c567-70958f
+var colors_pre = ['rgb(58, 177, 162)',
+          'rgb(196, 83, 83)',
+          'rgb(37, 68, 48)',
+          'rgb(182, 197, 103)',
+          'rgb(112, 149, 143)'];
+
+
+var stdWidth = 600;
+var stdHeight = 400;
+var draw_scale = 30.0;
+var scale_slider;
+var speed = 4.0;
+var speed_slider;
+var direction = 0.0;
+var dir_slider;
+var color_mode_checkbox;
+var color_mode = 0;
+var bgColor;
+var fgColor;
+
+var g = [];
+var eDim = 3;
+var e_off = [];
+var xoff = 0.0;
+var yoff = 0.0;
+var e = []; // basis vectors  
+var slopes = [];
+
+function preload() {
+  palette_JSON=loadJSON("/assets/colour_lovers_top40.json");
+}
+
+function setup() {
+  var p5c = createCanvas(stdWidth, stdHeight);
+  p5c.parent("p5");
+  fs.addFullScreenControl(p5c.elt,stdWidth,stdHeight,function(w,h) {
+     resizeCanvas(w,h);
+  });
+  p5c.elt.addEventListener("click", getColors, false);
+
+  scale_slider=createSlider(23,100,draw_scale,1.0);
+  scale_slider.parent("scale_slider");
+  scale_slider.style.right="0px";
+  draw_scale = scale_slider.value();
+
+  speed_slider=createSlider(0,10,speed,0.02);
+  speed_slider.parent("speed_slider");
+  speed_slider.style.right="0px";
+  speed = speed_slider.value();
+
+  dir_slider=createSlider(0,TWO_PI,random(0,TWO_PI),0.02);
+  dir_slider.parent("dir_slider");
+  dir_slider.style.right="0px";
+  direction = dir_slider.value();
+
+  color_mode_checkbox=createCheckbox('color mode',color_mode);
+  color_mode_checkbox.parent("color_mode");
+  color_mode_checkbox.changed(function() { color_mode = !color_mode; });
+  color_mode_checkbox.style.right="0px";
+
+  getColors();
+  var bodyStyle = window.getComputedStyle(document.body, null);
+  bgColor = bodyStyle.backgroundColor;
+  fgColor = bodyStyle.color;
+
+  for (var i=0; i<eDim;++i) { 
+    //g.push(random());
+    g.push(0.1*i);
+    e_off.push(0);
+  }
+
+  for (var i=0;i<eDim;++i) { 
+    var rad=TWO_PI*(i+1)/eDim;
+    var ei={x:cos(rad),y:sin(rad)};
+    e.push(ei);
+    slopes.push(-ei.y/ei.x);
+  }
+  noStroke();
+  frameRate(25);
+}
+
+function draw() {
+  background(255);
+  //console.log(frameRate());
+  draw_scale = scale_slider.value()*width/stdWidth;
+  speed = speed_slider.value();
+  direction = dir_slider.value();
+
+  push();
+
+  xoff += 0.01*speed*cos(direction);
+  yoff += 0.01*speed*sin(direction);
+
+  translate(width/2,height/2);
+  rotate(PI/6);
+  translate(0.5*draw_scale*xoff,0.5*draw_scale*yoff);
+
+  for (var i0=0;i0<eDim;++i0) {
+    var dot = e[i0].x*xoff + e[i0].y*yoff;
+    e_off[i0] = floor(dot);
+  }
+
+  for (var i0=0;i0<eDim;++i0) 
+  {
+    for (var i1=i0+1;i1<eDim;++i1)
+    {
+      for (var n0=-11-e_off[i0];n0<11-e_off[i0];++n0)
+      {
+        for (var n1=-11-e_off[i1];n1<11-e_off[i1];++n1)
+        {
+          intersectAndRhomb(i0,n0,i1,n1);
+        }
+      }
+    }
+  }
+  pop();
+}
+
+function intersectAndRhomb(i0,n0,i1,n1){
+    var e0 = e[i0];
+    var e1 = e[i1];
+    var n0g0e0 = {x:(n0+g[i0])*e0.x, y:(n0+g[i0])*e0.y};
+    var n1g1e1 = {x:(n1+g[i1])*e1.x, y:(n1+g[i1])*e1.y};
+    var A = slopes[i0];
+    var B = -A*n0g0e0.y + n0g0e0.x;
+    var C = 1.0/slopes[i1];
+    var D = -C*n1g1e1.x + n1g1e1.y;
+    var y = ( C*B + D ) / (1-C*A);
+    var x = A*y + B;
+    var intr = {x:x,y:y};
+
+    // now we have a cube, cast a shadow.
+    var n=Array(eDim);//[null,null,null,null,null];
+    for (var i=0;i<eDim;i++){
+      var ei=e[i];
+      A = slopes[i];
+      n[i] = floor((intr.x-A*intr.y)/(-A*ei.y+ei.x)-g[i]);
+    }
+
+    var rh=[];
+    for (var ni0=n0-1;ni0<n0+1;++ni0) {
+      for (var ni1=n1-1;ni1<n1+1;++ni1) {
+        n[i0]=ni0;
+        n[i1]=ni1;
+        var p = { x:xoff, y:yoff };
+        for (var i=0;i<eDim;++i) {
+          p.x+= n[i]*e[i].x;
+          p.y+= n[i]*e[i].y;
+        }
+        p.x*= draw_scale;
+        p.y*= draw_scale;
+        rh.push(p);
+      }
+    }
+
+  if(color_mode == 1) {
+    var diff = abs(i0-i1);
+    if(diff > 1 && diff < eDim-1) {
+      fill(colors[color_offset]);
+    } else {
+      fill(colors[(color_offset+1)%colors.length]);
+    }
+    stroke(colors[(color_offset+2)%colors.length]);
+  } else {
+    fill(colors[(color_offset+i0+i1)%colors.length]);
+    stroke(255);
+  }
+  //fill(colors[(color_offset+i0+i1)%2]);
+  quad(rh[0].x, rh[0].y, rh[1].x, rh[1].y, rh[3].x, rh[3].y, rh[2].x, rh[2].y);
+}
+
+function shuffle(array) {
+  var currentIndex = array.length, temporaryValue, randomIndex;
+
+  // While there remain elements to shuffle...
+  while (0 !== currentIndex) {
+
+    // Pick a remaining element...
+    randomIndex = Math.floor(Math.random() * currentIndex);
+    currentIndex -= 1;
+
+    // And swap it with the current element.
+    temporaryValue = array[currentIndex];
+    array[currentIndex] = array[randomIndex];
+    array[randomIndex] = temporaryValue;
+  }
+
+  return array;
+}
+
+function getColors() {
+  if(palette_JSON.length === 0) {
+    colors = colors_pre;
+  } else {
+    var palette_keys=Object.keys(palette_JSON);
+    var idxp = int(random(palette_keys.length));
+    var palette = palette_JSON[palette_keys[idxp]];
+    colors = [];
+    for(var i = 0;  i < palette["colors"].length; ++i) {
+      var cc = color("#"+ palette['colors'][i]);
+      //cc._array[3] = 0.8;
+      colors.push(cc);
+    }
+    var palette_link_div=select("#colourloverlink");
+    var palette_link = palette_JSON[idxp]['url'];
+    palette_link_div.html("<a href=\"" + palette_link + "\">\"" + palette_JSON[idxp]['title'] + "\" palette</a> from <a href=\"http://www.colourlovers.com/\">colour lovers</a>");
+    
+  }
+  colors = shuffle(colors);
+  color_offset = int(random(colors.length));
+  //var idxc = int(random(colors.length));
+  //bgc = colors[idxc];
+  //bgc._array[3] = 1.0;
+  //colors.splice(idxc,1);
+}
+</script>
+
+<div id="p5"></div><div>
+<div><span id="speed_slider"></span>speed</div>
+<div><span id="scale_slider"></span>scale</div>
+<div><span id="dir_slider"></span>direction</div>
+<div><span id="color_mode"></span></div>
+
+<div id="text">click to change colors<br/>
+adapted from <a href="https://github.com/daneroo/im-penrose">daneroo</a> on github
+</div>
+<div id="colourloverlink"></div>
+<div id="update"><small></small></div>
