@@ -166,9 +166,13 @@ function mousePressed() {
       && mouseY > 0
       &&mouseY<height){
      getColors();
-     running = false;
-     draw();
-     running = true;
+     if(running) {
+       running = false;
+       draw();
+       running = true;
+     } else {
+       draw();
+     }
      return false;
    }
 }
