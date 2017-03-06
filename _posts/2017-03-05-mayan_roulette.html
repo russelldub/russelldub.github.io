@@ -1,0 +1,199 @@
+---
+layout: post
+title:  "mayan roulette"
+date:   2017-03-05 19:11:00
+categories: experiments
+custom_js:
+  - p5/p5.min.js
+  - p5/addons/p5.dom.js
+  - local/fs.js
+---
+
+<script type="text/javascript">
+
+var decorator_likelihood = 0.12;
+var maya_font;
+var stdWidth = 900;
+var stdHeight = 600;
+
+var uni1, uni2;
+var running = true;
+var colors;
+var bgc;
+var fgc;
+var palette_JSON = [];
+
+function preload() {
+  maya_font = loadFont("/assets/Maya-mod.ttf");
+  palette_JSON=loadJSON("/assets/colour_lovers_top40.json");
+}
+
+function setup() {
+  p5c = createCanvas(stdWidth, stdHeight);
+  p5c.parent("p5");
+
+  fs.addFullScreenControl(p5c.elt,stdWidth,stdHeight,resizeCanvas);
+  getColors();
+}
+
+function getGlyph() {
+  return getFrontGlyph()  + getCenterGlyph() +
+         getTopGlyph() + getBottomGlyph() +
+         getBackGlyph();
+}
+
+function getCenterGlyph() {
+  r = random();
+  var octal = int(map(r,0,1,float(0x56F),float(0x822)));
+  var uni = String.fromCharCode(octal);
+  return uni;
+}
+
+function getFrontGlyph() {
+  var r = random();
+  if(r < decorator_likelihood) {
+      r = random();
+      var octal = int(map(r,0,1,float(0x200),float(0x2F4)));
+      var uni = String.fromCharCode(octal);
+      return uni;
+  } else {
+    return ""
+  }
+}
+
+function getTopGlyph() {
+  var r = random();
+  if(r < decorator_likelihood) {
+      r = random();
+      var octal = int(map(r,0,1,float(0x2F4),float(0x459)));
+      var uni = String.fromCharCode(octal);
+      return uni;
+  } else {
+    return ""
+  }
+}
+
+function getBottomGlyph() {
+  var r = random();
+  if(r < decorator_likelihood) {
+      r = random();
+      var octal = int(map(r,0,1,float(0x459),float(0x4FF)));
+      var uni = String.fromCharCode(octal);
+      return uni;
+  } else {
+    return ""
+  }
+}
+
+function getBackGlyph() {
+  var r = random();
+  if(r < decorator_likelihood) {
+      r = random();
+      var octal = int(map(r,0,1,float(0x4FF),float(0x56F)));
+      var uni = String.fromCharCode(octal);
+      return uni;
+  } else {
+    return ""
+  }
+}
+
+function draw() {
+  frameRate(0.5);
+  if(running) colors = shuffle(colors);
+  background(bgc);
+  //fill('#ED225D');
+  textFont(maya_font);
+  textSize(0.75*height);
+  textAlign(CENTER,CENTER);
+  if(running) uni1 = getGlyph();
+  fill(colors[0]);
+  text(uni1,width/4,height/3); //maya symbol
+  if(running) uni2 = getGlyph();
+  fill(colors[1]);
+  text(uni2,3*width/4,height/3); //maya symbol
+}
+
+function getColors() {
+  if(palette_JSON.length === 0) {
+    colors = colors_pre;
+  } else {
+    palette_keys=Object.keys(palette_JSON);
+    idxp = int(random(palette_keys.length));
+    palette = palette_JSON[palette_keys[idxp]];
+    colors = [];
+    for(var i = 0;  i < palette["colors"].length; ++i) {
+      cc = color("#"+ palette['colors'][i]);
+      colors.push(cc);
+    }
+    
+    var palette_link_div=select("#colourloverlink");
+    palette_link = palette_JSON[idxp]['url'];
+    palette_link_div.html("<a href=\"" + palette_link + "\">\"" + palette_JSON[idxp]['title'] + "\" palette</a> from <a href=\"http://www.colourlovers.com/\">colour lovers</a>");
+    
+  }
+  var idxc = int(random(colors.length));
+  bgc = colors[idxc];
+  //bgc._array[3] = 1.0;
+  colors.splice(idxc,1);
+  colors = shuffle(colors);
+  //var idxc = int(random(colors.length));
+  //fgc = colors[idxc];
+  //fgc._array[3] = 1.0;
+  //colors.splice(idxc,1);
+}
+
+function shuffle(array) {
+  var currentIndex = array.length, temporaryValue, randomIndex;
+
+  // While there remain elements to shuffle...
+  while (0 !== currentIndex) {
+
+    // Pick a remaining element...
+    randomIndex = Math.floor(Math.random() * currentIndex);
+    currentIndex -= 1;
+
+    // And swap it with the current element.
+    temporaryValue = array[currentIndex];
+    array[currentIndex] = array[randomIndex];
+    array[randomIndex] = temporaryValue;
+  }
+  return array;
+}
+
+function mousePressed() {
+   if(mouseX > 0
+      && mouseX < width
+      && mouseY > 0
+      &&mouseY<height){
+     getColors();
+     running = false;
+     draw();
+     running = true;
+     return false;
+   }
+}
+
+function keyTyped() {
+  if(key === "S") {
+    saveCanvas("s"+int(random(9999)),"png");
+  }
+  if(key === "p") {
+    if(running) {
+      running = false;
+    } else {
+      running = true;
+    }
+  }
+}
+
+</script>
+
+<div id="p5"></div>
+<div id="text">click to to change colors</br>
+type "S" to save</br>
+type "p" to pause</br>
+inspired by <a href="https://www.instagram.com/p/BQv5_ltBg0n/">echophon</a></div>
+<a href="http://users.teilar.gr/~g1951d/">font source</a></br>
+font modified with <a href="http://fontforge.github.io">fontforge</a> (to change unicode codepoints)</br>
+<div id="colourloverlink"></div>
+<div id="update"></div>
