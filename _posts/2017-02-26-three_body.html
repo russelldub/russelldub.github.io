@@ -1,0 +1,603 @@
+---
+layout: post
+title:  "three-body"
+date:   2017-03-26 16:50:00
+categories: experiments
+custom_js:
+  - three/three.min.js
+  - three/OrbitControls.js
+  - local/fs.js
+---
+
+<script type="text/javascript">
+"use strict";
+var camera, scene, renderer, controls;
+//var bd1, bd2, bd3;
+var num_bdies = 3;
+var bdies;
+var clock = new THREE.Clock();
+var renderWidth = 800;
+var renderHeight = 450;
+var G = 1.0;
+var dt_nominal=1.0e-5;
+var dt=dt_nominal;
+var t=0.0;
+var next_period = 0;
+var sub_iters=10000;
+var pattern;
+var speed = 0.25;
+var trail_length = 200;
+var max_trail_length = 800;
+var enable_rotation = false;
+
+
+var colors;
+var bgc;
+var fgc;
+var palette_JSON = [];
+
+
+var vects = {
+  'butterfly_I':    {p1: 0.306892758965492, p2: 0.125506782829762,  T: 6.23564136316479},
+  'butterfly_II':   {p1: 0.392955223941802, p2: 0.0975792352080344, T: 7.00390738764014},
+  'bumblebee':     {p1: 0.184278506469727, p2: 0.587188195800781,  T: 63.5345412733264},
+  'moth_I':         {p1: 0.464445237398184, p2: 0.396059973403921,  T: 14.8939113169584},
+  'moth_II':        {p1: 0.439165939331987, p2: 0.452967645644678,  T: 28.6702783225658},
+  'butterfly_III':  {p1: 0.405915588857606, p2: 0.230163127422333,  T: 13.8657626785699},
+  'moth_III':       {p1: 0.383443534851074, p2: 0.377363693237305,  T: 25.8406180475758},
+  'goggles':        {p1: 0.0833000564575194, p2: 0.127889282226563, T: 10.4668176954385},
+  'butterfly_IV':   {p1: 0.350112121391296, p2: 0.0793394773483276, T: 79.4758748952101},
+  'dragonfly':      {p1: 0.080584285736084, p2: 0.588836087036132,  T: 21.2709751966648},
+  'yarn':           {p1: 0.559064247131347, p2: 0.349191558837891,  T: 55.5017624421301},
+  'yin-yang_Ia':    {p1: 0.513938054919243, p2: 0.304736003875733,  T: 17.328369755004},
+  'yin-yang_Ib':    {p1: 0.282698682308198, p2: 0.327208786129952,  T: 10.9625630756217},
+  'yin-yang_IIa':   {p1: 0.416822143554688, p2: 0.330333312988282,  T: 55.78982856891},
+  'yin-yang_IIb':   {p1: 0.417342877101898, p2: 0.313100116109848,  T: 54.2075992141846},
+//Not in the papers, and non-periodic (found by playing around with random)
+  'funky-old-man':  {p1: 0.42121078045638244, p2: 0.47605283894881034, T: Infinity}, 
+  'compact-swirls': {p1: 0.09635303098696324, p2: 0.11578301378958955, T: Infinity},
+  'sherbert':       {p1: 0.2682866627456002, p2: 0.47622865620212906, T: Infinity},
+  'ampersand':      {p1: 0.4701108775571186, p2: 0.46545151819518205, T: Infinity},
+  '9s6':            {p1: 0.3959739419149562, p2: 0.3087824924182337, T: Infinity},
+  'random':         {cb: function() {
+    var p1_ = Math.random()*0.5;
+    var p2_ = Math.random()*0.5;
+    var T_ =  Infinity;
+    return {p1: p1_, p2: p2_, T: T_};
+  }},
+}
+
+
+
+window.onload = function() {
+  loadJSON('/assets/colour_lovers_top40.json',function(response) {
+     palette_JSON = JSON.parse(response);
+     getColors();
+     init();
+     animate();
+  });
+}
+
+
+function init() {
+  //camera = new THREE.OrthographicCamera(-renderWidth/2, renderWidth/2, -renderHeight/2, renderHeight/2, 1, 1000 );
+  camera = new THREE.PerspectiveCamera( 70, renderWidth / renderHeight, 0.01, 100 );
+  camera.position.z = 2.0;
+  scene = new THREE.Scene();
+
+  var ambient = new THREE.AmbientLight( 0xffffff );
+  scene.add( ambient );
+
+  var directionalLight = new THREE.DirectionalLight( 0xffffff );
+  directionalLight.position.set( 0, 0, 1 );
+  scene.add( directionalLight );
+
+  renderer = new THREE.WebGLRenderer();
+  renderer.setPixelRatio( window.devicePixelRatio );
+  renderer.setSize( renderWidth, renderHeight );
+  //renderer.setSize( window.innerWidth, window.innerHeight );
+  //var gl = renderer.context;
+
+  pattern = 'bumblebee';
+  var p1 = vects[pattern].p1;
+  var p2 = vects[pattern].p2;
+  var bd1 = new Bdy(-1,0,0,p1,p2,0,0);
+  var bd2 = new Bdy(1,0,0,p1,p2,0,1);
+  var bd3 = new Bdy(0,0,0,-2*p1,-2*p2,0,2);
+  bdies = [bd1, bd2, bd3];
+  next_period = vects[pattern].T;
+  //bdies = [bd1, bd2];
+
+  make_select();
+  make_speed_slider();
+  make_trail_slider();
+  make_rotate_check();
+
+  var three_div = document.getElementById("three");
+  three_div.appendChild( renderer.domElement );
+  three_div.addEventListener("click", getColors, false);
+  fs.addFullScreenControl(renderer.domElement,renderWidth,renderHeight,function(w,h) {
+     camera.aspect = w / h;
+     camera.updateProjectionMatrix();
+     renderer.setSize( w, h );
+  });
+
+  controls = new THREE.OrbitControls( camera, renderer.domElement );
+  //controls.addEventListener( 'change', render ); // remove when using animation loop
+  // enable animation loop when using damping or autorotation
+  //controls.enableDamping = true;
+  //controls.dampingFactor = 0.25;
+  controls.enableZoom = false;
+  controls.autoRotate = false;
+  controls.enabled = false;
+
+
+  init_rk4();
+}
+
+function animate() {
+  //console.log("t=",t);
+  //var sub_t = 0;
+  //var sub_dt = sub_iters*dt_nominal*speed;
+  //while(sub_t <  sub_dt) {
+  for(var j = 0; j < speed*sub_iters; ++j) {
+    var max_velocity = 1.0;
+    for(var i = 0; i < bdies.length; ++i) {
+      var bdy = bdies[i];
+      var vel_norm = bdy.velocity.length();
+      max_velocity = Math.max(vel_norm,max_velocity);
+    }
+    dt = dt_nominal/max_velocity;
+    t += dt;
+    //sub_t += dt;
+    //explicit();
+    rk4();
+    if(t >= next_period) {
+       //console.log('RESET! t =',t);
+       reset_positions(false);
+       next_period += vects[pattern].T;
+    }
+    
+
+  }
+
+  // System-breakdown check
+  // Should only happen for random pattern
+  var max_position = 0.0;
+  for(var i = 0; i < bdies.length; ++i) {
+    var bdy = bdies[i];
+    var pos_norm = bdy.position.length();
+    max_position = Math.max(pos_norm,max_position);
+  }
+  if(max_position > 5.0) {
+    reset_positions(true);
+  }
+
+  for( var i = 0; i < bdies.length; ++i) {
+    bdies[i].update_meshes();
+  }
+  scene.background = new THREE.Color( bgc );
+  //apply_constraints(bdies);
+
+  //camera.rotation.y += 0.01;
+
+  controls.update();
+  render();
+  requestAnimationFrame( animate );
+}
+
+function render() {
+  var delta = clock.getDelta();
+  renderer.render( scene, camera );
+}
+
+function reset_positions(pattern_change) {
+  if(pattern_change && vects[pattern].hasOwnProperty("cb")) {
+    Object.assign(vects[pattern],vects[pattern].cb());
+  }
+  var p1 = vects[pattern].p1;
+  var p2 = vects[pattern].p2;
+  bdies[0].position.set(-1,0,0)
+  bdies[0].velocity.set(p1,p2,0);
+  bdies[1].position.set(1,0,0)
+  bdies[1].velocity.set(p1,p2,0);
+  bdies[2].position.set(0,0,0)
+  bdies[2].velocity.set(-2*p1,-2*p2,0);
+
+  if(pattern_change) {
+    for(var i = 0; i < bdies.length; ++i) {
+      bdies[i].mesh.position.copy(bdies[i].position);
+      for(var j = 0; j < max_trail_length; ++j) {
+        bdies[i].trail.geometry.vertices[j].copy(bdies[i].position);
+      }
+      bdies[i].trail.geometry.verticesNeedUpdate = true;
+    }
+  }
+}
+
+function Bdy(px,py,pz,vx,vy,vz,idx) {
+    this.idx = idx;
+    this.mesh = this.make_mesh(colors[this.idx]);
+    //var r = 100 + Math.random()*20;
+    //var theta = Math.random()*Math.PI;
+    //var phi = Math.random()*2*Math.PI - Math.PI;
+    //cube.position.x = r*Math.sin(theta)*Math.cos(phi);
+    //cube.position.y = r*Math.sin(theta)*Math.sin(phi);
+    //cube.position.z = r*Math.cos(theta);
+    this.position = new THREE.Vector3(px,py,pz);
+    this.mesh.position.copy(this.position);
+//    this.mesh.position.x = this.position.x;
+//    this.mesh.position.y = this.position.y;
+//    this.mesh.position.z = this.position.z;
+    this.trail = this.make_trail(colors[this.idx]);
+    this.mass = 1.0;
+
+    this.velocity = new THREE.Vector3(vx,vy,vz);
+    //this.velocity.x = (Math.random()-0.5)*0.2;
+    //this.velocity.y = (Math.random()-0.5)*0.2;
+    //this.velocity.z = (Math.random()-0.5)*0.2;
+
+    this.acceleration = new THREE.Vector3(0,0,0);
+}
+
+Bdy.prototype.calc_forces = function(bdies) {
+    this.acceleration.multiplyScalar(0.0);
+    for(var i = 0; i < bdies.length; ++i) {
+      var bdy = bdies[i];
+      if( this === bdy ) {continue;}
+      var dx = this.position.clone().sub(bdy.position);
+      if( dx.length() == 0.0 ) {continue;}
+      var d = dx.length();
+      var d3 = d*d*d;
+      this.acceleration.sub( dx.multiplyScalar(G*bdy.mass/d3) );
+    };
+}
+
+Bdy.prototype.update = function() {
+    this.velocity.add( this.acceleration.clone().multiplyScalar(dt) );
+    this.position.add( this.velocity.clone().multiplyScalar(dt) );
+    this.mesh.position.copy(this.position);
+}
+
+
+Bdy.prototype.make_mesh = function(color) {
+  var size = 0.05;
+  //var geometry = new THREE.BoxBufferGeometry( size, size, size);
+  var geometry = new THREE.SphereBufferGeometry(size, 64, 64);
+  var material = new THREE.MeshPhysicalMaterial( {
+    map: null,
+    color: color,
+    metalness: 0.5,
+    roughness: 0.1,
+    opacity: 0.95,
+    side: THREE.FrontSide,
+    transparent: true,
+    shading: THREE.SmoothShading,
+    envMapIntensity: 5,
+    premultipliedAlpha: true
+  } );
+  //var material = new THREE.MeshPhysicalMaterial( { color: color, } );
+  var cube = new THREE.Mesh( geometry, material )
+  scene.add( cube );
+  return cube;
+}
+
+Bdy.prototype.make_trail = function(color) {
+  //trailing lines
+  var lineMaterial = new THREE.LineBasicMaterial({ color: color, linewidth: 4.0 });
+  var lineGeometry = new THREE.Geometry();
+  for (var j = 0; j < max_trail_length; j++){
+      //lines start at the initial positions of the spheres
+      lineGeometry.vertices.push(new THREE.Vector3(0,0,0));
+      lineGeometry.vertices[j].copy(this.position);
+  }
+  var trail = new THREE.Line(lineGeometry, lineMaterial);
+  scene.add( trail );
+  return trail;
+}
+
+Bdy.prototype.update_meshes = function() {
+  this.mesh.position.copy(this.position);
+  this.mesh.material.color = new THREE.Color(colors[this.idx]);
+
+  this.trail.geometry.vertices.pop();
+  this.trail.geometry.vertices.unshift(this.position.clone());
+
+  var end = this.position.clone();
+  if(trail_length > 0) {
+      end = this.trail.geometry.vertices[trail_length-1];
+  }
+  for(var j = trail_length; j < max_trail_length; ++j) {
+    this.trail.geometry.vertices[j].copy(end);
+  }
+  //this.trail.material.color = colors[this.idx];
+  this.trail.material.color = new THREE.Color(colors[this.idx]);
+
+  this.trail.geometry.verticesNeedUpdate = true;
+}
+
+var orig_pos = new Array(num_bdies);
+var orig_vel = new Array(num_bdies);
+var k1v = new Array(num_bdies);
+var k2v = new Array(num_bdies);
+var k3v = new Array(num_bdies);
+var k4v = new Array(num_bdies);
+var k1p = new Array(num_bdies);
+var k2p = new Array(num_bdies);
+var k3p = new Array(num_bdies);
+var k4p = new Array(num_bdies);
+
+var init_rk4 = function() {
+    for(var i = 0; i < bdies.length; ++i) {
+        orig_pos[i] = new THREE.Vector3(0.0,0.0,0.0);
+        orig_vel[i] = new THREE.Vector3(0.0,0.0,0.0);
+        k1v[i] = new THREE.Vector3(0.0,0.0,0.0);
+        k2v[i] = new THREE.Vector3(0.0,0.0,0.0);
+        k3v[i] = new THREE.Vector3(0.0,0.0,0.0);
+        k4v[i] = new THREE.Vector3(0.0,0.0,0.0);
+        k1p[i] = new THREE.Vector3(0.0,0.0,0.0);
+        k2p[i] = new THREE.Vector3(0.0,0.0,0.0);
+        k3p[i] = new THREE.Vector3(0.0,0.0,0.0);
+        k4p[i] = new THREE.Vector3(0.0,0.0,0.0);
+    }
+}
+
+var rk4 = function() {
+    for(var i = 0; i < bdies.length; ++i) {
+       orig_pos[i].copy(bdies[i].position);
+       orig_vel[i].copy(bdies[i].velocity);
+       bdies[i].calc_forces(bdies);//acceleration
+    }
+
+    for(var i = 0; i < bdies.length; ++i) {
+       k1v[i].copy(bdies[i].acceleration).multiplyScalar(dt);
+       k1p[i].copy(bdies[i].velocity).multiplyScalar(dt);
+       bdies[i].velocity.copy(orig_vel[i]).add( k1v[i].clone().multiplyScalar(0.5) );
+       bdies[i].position.copy(orig_pos[i]).add( k1p[i].clone().multiplyScalar(0.5) );
+    }
+
+    for(var i = 0; i < bdies.length; ++i) {
+       bdies[i].calc_forces(bdies);//acceleration
+    }
+
+    for(var i = 0; i < bdies.length; ++i) {
+       k2v[i].copy(bdies[i].acceleration).multiplyScalar(dt);
+       k2p[i].copy(bdies[i].velocity).multiplyScalar(dt);
+       bdies[i].velocity.copy(orig_vel[i]).add( k2v[i].clone().multiplyScalar(0.5) );
+       bdies[i].position.copy(orig_pos[i]).add( k2p[i].clone().multiplyScalar(0.5) );
+    }
+
+    for(var i = 0; i < bdies.length; ++i) {
+       bdies[i].calc_forces(bdies);
+    }
+
+    for(var i = 0; i < bdies.length; ++i) {
+       k3v[i].copy(bdies[i].acceleration).multiplyScalar(dt);
+       k3p[i].copy(bdies[i].velocity).multiplyScalar(dt);
+       bdies[i].velocity.copy(orig_vel[i]).add( k3v[i] );
+       bdies[i].position.copy(orig_pos[i]).add( k3p[i] );
+    }
+
+    for(var i = 0; i < bdies.length; ++i) {
+       bdies[i].calc_forces(bdies);
+    }
+
+    for(var i = 0; i < bdies.length; ++i) {
+       k4v[i].copy(bdies[i].acceleration).multiplyScalar(dt);
+       k4p[i].copy(bdies[i].velocity).multiplyScalar(dt);
+       bdies[i].velocity.copy(orig_vel[i]).add(k1v[i].multiplyScalar(1.0/6.0));
+       bdies[i].velocity.add(k2v[i].multiplyScalar(1.0/3.0));
+       bdies[i].velocity.add(k3v[i].multiplyScalar(1.0/3.0));
+       bdies[i].velocity.add(k4v[i].multiplyScalar(1.0/6.0));
+
+       bdies[i].position.copy(orig_pos[i]).add(k1p[i].multiplyScalar(1.0/6.0));
+       bdies[i].position.add(k2p[i].multiplyScalar(1.0/3.0));
+       bdies[i].position.add(k3p[i].multiplyScalar(1.0/3.0));
+       bdies[i].position.add(k4p[i].multiplyScalar(1.0/6.0));
+  }
+}
+
+var explicit = function() {
+    for(var i = 0; i < bdies.length; ++i) {
+      var bdy = bdies[i];
+      bdy.calc_forces(bdies);
+    }
+    for(var i = 0; i < bdies.length; ++i) {
+      var bdy = bdies[i];
+      bdy.update();
+    }
+}
+
+function apply_constraints(bdies) {
+  var sum_posx = 0.0;
+  var sum_posy = 0.0;
+  var sum_posz = 0.0;
+  var sum_velx = 0.0;
+  var sum_vely = 0.0;
+  var sum_velz = 0.0;
+
+  for(var i = 0; i < bdies.length; ++i) {
+    var bdy = bdies[i];
+    sum_posx += bdy.position.x;
+    sum_posy += bdy.position.y;
+    sum_posz += bdy.position.z;
+    sum_velx += bdy.velocity.x;
+    sum_vely += bdy.velocity.y;
+    sum_velz += bdy.velocity.z;
+  }
+  for(var i = 0; i < bdies.length; ++i) {
+    var bdy = bdies[i];
+    bdy.position.x -= sum_posx/bdies.length;
+    bdy.position.y -= sum_posy/bdies.length;
+    bdy.position.z -= sum_posz/bdies.length;
+    bdy.velocity.x -= sum_velx/bdies.length;
+    bdy.velocity.y -= sum_vely/bdies.length;
+    bdy.velocity.z -= sum_velz/bdies.length;
+  }
+}
+
+function make_select() {
+    var control_div = document.getElementById("select_pattern_div");
+
+    //Create and append select list
+    var selectList = document.createElement("select");
+    selectList.id = "select_pattern";
+    selectList.onchange = function() {
+       var selected_pattern =  document.getElementById('select_pattern').value;
+       if(selected_pattern != pattern) {
+           //console.log("Pattern Change: ",pattern, selected_pattern);
+           pattern = selected_pattern;
+           t = 0.0;
+           
+           reset_positions(true);
+           next_period = vects[pattern].T;
+       }
+    }
+    control_div.appendChild(selectList);
+
+    for (var patt in vects) {
+        if (vects.hasOwnProperty(patt)) {
+            // do stuff
+            var option = document.createElement("option");
+            option.value = patt;
+            option.text = patt;
+            selectList.appendChild(option);
+        }
+    }
+    selectList.value = pattern;
+}
+
+function make_speed_slider() {
+    var control_div = document.getElementById("speed_slider_div");
+
+    //Create and append select list
+    var slider = document.createElement("INPUT");
+    slider.setAttribute("type", "range");
+    slider.id = "speed_slider";
+    slider.min = 0.0;
+    slider.max = 1.0;
+    slider.step = 0.01;
+    slider.value = speed;
+    slider.defaultValue = speed;
+    slider.onchange = function() {
+       speed =  document.getElementById('speed_slider').value;
+    }
+    control_div.appendChild(slider);
+}
+
+function make_trail_slider() {
+    var control_div = document.getElementById("trail_slider_div");
+
+    //Create and append select list
+    var slider = document.createElement("INPUT");
+    slider.setAttribute("type", "range");
+    slider.id = "trail_slider";
+    slider.min = 0;
+    slider.max = max_trail_length;
+    slider.step = 1;
+    slider.value = trail_length;
+    slider.defaultValue = trail_length;
+    slider.onchange = function() {
+       trail_length =  document.getElementById('trail_slider').value;
+    }
+    control_div.appendChild(slider);
+}
+
+function make_rotate_check() {
+    var control_div = document.getElementById("rotation_div");
+
+    //Create and append select list
+    var checkbox = document.createElement("INPUT");
+    checkbox.setAttribute("type", "checkbox");
+    checkbox.id = "rotation_checkbox";
+    checkbox.value = "rotation_checkbox";
+    checkbox.checked = false;
+    checkbox.onchange = function() {
+       controls.autoRotate = document.getElementById('rotation_checkbox').checked;
+       if(!controls.autoRotate) {controls.reset();};
+    }
+    control_div.appendChild(checkbox);
+}
+
+function getColors() {
+  if(palette_JSON.length == 0) {
+    colors = colors_pre;
+  } else {
+    //console.log("COLORS!");
+    var palette_keys=Object.keys(palette_JSON);
+    var idxp = Math.floor(Math.random()*palette_keys.length);
+    var palette = palette_JSON[palette_keys[idxp]];
+    colors = [];
+    for(var i = 0;  i < palette["colors"].length; ++i) {
+      var cc = "#"+ palette['colors'][i];
+      colors.push(cc);
+    }
+    
+    var palette_link_div=document.getElementById("colourloverlink");
+    var palette_link = palette_JSON[idxp]['url'];
+    palette_link_div.innerHTML = "<a href=\"" + palette_link + "\">\"" + palette_JSON[idxp]['title'] + "\" palette</a> from <a href=\"http://www.colourlovers.com/\">colour lovers</a>";
+    
+  }
+  colors = shuffle(colors);
+  var idxc = Math.floor(Math.random()*colors.length);
+  bgc = colors[idxc];
+  colors.splice(idxc,1);
+}
+
+function loadJSON(path, callback) {   
+   var xobj = new XMLHttpRequest();
+   xobj.overrideMimeType("application/json");
+   xobj.open('GET', path, true);
+   xobj.onreadystatechange = function () {
+         if (xobj.readyState == 4 && xobj.status == "200") {
+           // Required use of an anonymous callback as .open will NOT return a value but simply returns undefined in asynchronous mode
+           callback(xobj.responseText);
+         }
+   };
+   xobj.send(null);  
+}
+ 
+
+function shuffle(array) {
+  var currentIndex = array.length, temporaryValue, randomIndex;
+
+  // While there remain elements to shuffle...
+  while (0 !== currentIndex) {
+
+    // Pick a remaining element...
+    randomIndex = Math.floor(Math.random() * currentIndex);
+    currentIndex -= 1;
+
+    // And swap it with the current element.
+    temporaryValue = array[currentIndex];
+    array[currentIndex] = array[randomIndex];
+    array[randomIndex] = temporaryValue;
+  }
+
+  return array;
+}
+
+</script>
+
+<div id="three"></div>
+<div id="select_pattern_div">pattern:</div>
+<div id="speed_slider_div">speed:</div>
+<div id="trail_slider_div">trail:</div>
+<div id="rotation_div">rotate:</div>
+<div id="text">
+inspired by <a href="https://en.wikipedia.org/wiki/The_Three-Body_Problem">The Three-Body Problem</a> by Liu Cixin.<br>
+references:<br>
+<small>
+<ul>
+<li><a href="http://threejs.org">three.js</a></li>
+<li><a href="http://mathworld.wolfram.com/Runge-KuttaMethod.html">RK4</a></li>
+<li><a href="https://github.com/pja/three-body">pja on github's implementation</a></li>
+<li><a href="https://github.com/pjpmarques/Julia-Modeling-the-World/blob/master/Three-Body%20Problem.ipynb">jupyter notebook version</a></li>
+<li><a href="http://aapt.scitation.org/doi/full/10.1119/1.4867608">Source of periodic initial conditions</a></li>
+<li><a href="https://arxiv.org/pdf/1303.0181.pdf">Previous publication on periodic initial conditions</a></li>
+<li><a href="http://suki.ipb.ac.rs/3body">Periodic IC explainer website</a></li>
+
+</ul>
+</small>
+<div id="colourloverlink"></div>
+<div id="updates"><small></small></div>
