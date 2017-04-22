@@ -1,26 +1,12 @@
 ---
 layout: default
 ---
-<link rel="stylesheet" href="/pkgs/fontawesome/css/font-awesome.min.css" type="text/css">
 
 <div class="post">
 
   <header class="post-header">
     <h1 class="post-title">{{ page.title }}</h1>
     <p class="post-meta">{{ page.date | date: "%b %-d, %Y" }}{% if page.author %} • {{ page.author }}{% endif %}{% if page.meta %} • {{ page.meta }}{% endif %}</p>
-
-    {% if page.custom_css %}
-      {% for stylesheet in page.custom_css %}
-      <link rel="stylesheet" href="/css/{{ stylesheet }}" media="screen" type="text/css">
-      {% endfor %}
-    {% endif %}
-
-    {% if page.custom_js %}
-      {% for js_file in page.custom_js %}
-        <script src='/scripts/{{ js_file }}' type="text/javascript"></script>
-      {% endfor %}
-    {% endif %}
-  </header>
 
   <article class="post-content">
     {{ content }}
