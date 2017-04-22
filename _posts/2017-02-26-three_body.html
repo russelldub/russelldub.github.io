@@ -29,6 +29,8 @@ var speed = 0.25;
 var trail_length = 200;
 var max_trail_length = 800;
 var enable_rotation = false;
+var alert_time = 800.0;
+var alert_time_init = alert_time;
 
 
 var colors;
@@ -58,6 +60,10 @@ var vects = {
   'compact-swirls': {p1: 0.09635303098696324, p2: 0.11578301378958955, T: Infinity},
   'sherbert':       {p1: 0.2682866627456002, p2: 0.47622865620212906, T: Infinity},
   'ampersand':      {p1: 0.4701108775571186, p2: 0.46545151819518205, T: Infinity},
+  'fancy-flights':  {p1: 0.49404855135139464, p2: 0.37821005430539045, T: Infinity},
+  'lotus-bouqet':   {p1: 0.39510589982706745, p2: 0.3769371976068078, T: Infinity},
+  'loose-weave':    {p1: 0.4699329461162471, p2: 0.4484413714439198, T: Infinity},
+  'crazy-eights':   {p1: 0.4316668791218043, p2:0.47871480508994935, T: Infinity},
   '9s6':            {p1: 0.3959739419149562, p2: 0.3087824924182337, T: Infinity},
   'random':         {cb: function() {
     var p1_ = Math.random()*0.5;
@@ -66,7 +72,9 @@ var vects = {
     return {p1: p1_, p2: p2_, T: T_};
   }},
 }
-
+//Lived 800
+//p1=0.4612972984056371
+//p2=0.45830232383819847
 
 
 window.onload = function() {
@@ -137,9 +145,6 @@ function init() {
 
 function animate() {
   //console.log("t=",t);
-  //var sub_t = 0;
-  //var sub_dt = sub_iters*dt_nominal*speed;
-  //while(sub_t <  sub_dt) {
   for(var j = 0; j < speed*sub_iters; ++j) {
     var max_velocity = 1.0;
     for(var i = 0; i < bdies.length; ++i) {
@@ -149,13 +154,16 @@ function animate() {
     }
     dt = dt_nominal/max_velocity;
     t += dt;
+    if(t > alert_time) {
+      alert("Long lived IC. t="+t+"\np1="+vects[pattern].p1+"\np2="+vects[pattern].p2);
+      alert_time *= 2.0;
+    }
     //sub_t += dt;
     //explicit();
     rk4();
     if(t >= next_period) {
        //console.log('RESET! t =',t);
        reset_positions(false);
-       next_period += vects[pattern].T;
     }
     
 
@@ -170,6 +178,7 @@ function animate() {
     max_position = Math.max(pos_norm,max_position);
   }
   if(max_position > 5.0) {
+    console.log("Died at ", t);
     reset_positions(true);
   }
 
@@ -195,6 +204,11 @@ function reset_positions(pattern_change) {
   if(pattern_change && vects[pattern].hasOwnProperty("cb")) {
     Object.assign(vects[pattern],vects[pattern].cb());
   }
+
+  alert_time = alert_time_init;
+  t=0.0;
+  next_period = vects[pattern].T;
+
   var p1 = vects[pattern].p1;
   var p2 = vects[pattern].p2;
   bdies[0].position.set(-1,0,0)
@@ -447,10 +461,8 @@ function make_select() {
        if(selected_pattern != pattern) {
            //console.log("Pattern Change: ",pattern, selected_pattern);
            pattern = selected_pattern;
-           t = 0.0;
            
            reset_positions(true);
-           next_period = vects[pattern].T;
        }
     }
     control_div.appendChild(selectList);
