@@ -1,0 +1,224 @@
+---
+layout: post
+title:  "Collatz Sea Fan"
+date:   2017-04-30 19:26:00
+categories: experiments
+custom_js:
+  - p5/p5.min.js
+  - p5/addons/p5.dom.js
+  - local/fs.js
+---
+
+<script type="text/javascript">
+var p5c;
+
+var segment_length  = 1.35;
+var segment_length_slider;
+
+//var angle = Math.PI/12;
+var angle = 0.2356;
+var angle_slider;
+
+var colors;
+var bgc;
+var fgc;
+var palette_JSON = [];
+
+var stdWidth  = 600;
+var stdHeight = 450;
+
+var root_node;
+var lines = [];
+var visited = {};
+var running = true;
+
+function preload() {
+  palette_JSON=loadJSON("/assets/colour_lovers_top40.json");
+}
+
+function setup() {
+  p5c = createCanvas(stdWidth, stdHeight);
+  p5c.parent("p5");
+  fs.addFullScreenControl(p5c.elt,stdWidth,stdHeight,resizeCanvas);
+
+  getColors();
+  frameRate(30);
+
+  segment_length_slider=createSlider(0.05,3.0,segment_length,0.05);
+  segment_length_slider.parent("segment_length_slider");
+  segment_length_slider.style.right="0px";
+  segment_length_factor = segment_length_slider.value();
+
+  angle_slider=createSlider(PI/360,PI/8,angle,PI/360);
+  angle_slider.parent("angle_slider");
+  angle_slider.style.right="0px";
+
+  //root_node = new CollatzNode(2,0,0,height/40);
+  for(var i = 3; i < 1200; ++i) {
+    if(!visited.hasOwnProperty(i)) {
+      lines.push(new CollatzLine(i));
+    }
+  }
+  console.log("# of lines: "+lines.length);
+  //lines = lines.sort(function(a,b) { a.sequence.length - b.sequence.length } );
+  //noLoop();
+}
+
+CollatzLine = function(n) {
+  this.n = n;
+  this.sequence = []
+  while(n > 1) {
+    this.sequence.push(n);
+    visited[n] = 'y';
+    if(n%2 == 0) {
+      n = n/2; 
+    } else {
+      n = (3*n+1)/2;
+    }
+  }
+  this.sequence.reverse();
+}
+
+CollatzLine.prototype.draw = function() {
+  var turns = 0;
+  for(var i = 0; i < this.sequence.length; ++i) {
+    if(this.sequence[i] % 2 == 0) {
+      ++turns;
+    } else {
+      --turns;
+    }
+  }
+  if(turns < 7 || turns > 10) {
+    return;
+  }
+  
+  push();
+  strokeWeight(6*height/stdHeight);
+  stroke(colors[this.n%colors.length]);
+  noFill();
+  var x = 0;
+  var y = 0;
+  var a = 0;
+  var offset = 5*PI/180*noise(this.n/1200,cos(frameCount/120));
+  beginShape();
+  for(var i = 0; i < this.sequence.length; ++i) {
+    if(this.sequence[i] % 2 == 0) {
+      a = a-(angle+offset);
+    } else {
+      a = a+(angle+offset);
+    }
+    x += -segment_length*15*cos(a)*height/stdHeight;
+    y -= -segment_length*15*sin(a)*height/stdHeight;
+    curveVertex(x,y);
+  }
+  endShape();
+  pop();
+}
+
+function draw() {
+  angle = angle_slider.value();
+  segment_length = segment_length_slider.value();
+  background(bgc);
+  push();
+  var len = 0.05*height;
+  translate(width/2+3*len,height-len);
+  for(var i = 0; i < lines.length; ++i) {
+    lines[i].draw();
+  }
+  pop();
+}
+
+function shuffle(array) {
+  var currentIndex = array.length, temporaryValue, randomIndex;
+
+  // While there remain elements to shuffle...
+  while (0 !== currentIndex) {
+
+    // Pick a remaining element...
+    randomIndex = Math.floor(Math.random() * currentIndex);
+    currentIndex -= 1;
+
+    // And swap it with the current element.
+    temporaryValue = array[currentIndex];
+    array[currentIndex] = array[randomIndex];
+    array[randomIndex] = temporaryValue;
+  }
+
+  return array;
+}
+
+function getColors() {
+  if(palette_JSON.length === 0) {
+    colors = colors_pre;
+  } else {
+    palette_keys=Object.keys(palette_JSON);
+    idxp = int(random(palette_keys.length));
+    palette = palette_JSON[palette_keys[idxp]];
+    colors = [];
+    for(var i = 0;  i < palette["colors"].length; ++i) {
+      cc = color("#"+ palette['colors'][i]);
+      //cc._array[3] = 0.8;
+      colors.push(cc);
+    }
+    
+    var palette_link_div=select("#colourloverlink");
+    palette_link = palette_JSON[idxp]['url'];
+    palette_link_div.html("<a href=\"" + palette_link + "\">\"" + palette_JSON[idxp]['title'] + "\" palette</a> from <a href=\"http://www.colourlovers.com/\">colour lovers</a>");
+    
+  }
+  var idxc = int(random(colors.length));
+  bgc = colors[idxc];
+  bgc._array[3] = 1.0;
+  colors.splice(idxc,1);
+  var idxc = int(random(colors.length));
+  fgc = colors[idxc];
+  fgc._array[3] = 1.0;
+  //colors.splice(idxc,1);
+  colors = shuffle(colors);
+}
+
+function touchEnded() {
+   if(mouseX > 0
+      && mouseX < width
+      && mouseY > 0
+      &&mouseY<height){
+     getColors();
+     return false;
+   }
+}
+
+function keyReleased() {
+ if(mouseX > 0
+    && mouseX < width
+    && mouseY > 0
+    &&mouseY < height){
+    if(key === "S") {
+      saveCanvas("s"+int(random(9999)),"png");
+    }
+    if(key === "P") {
+      if(running) { 
+        running = false;
+        noLoop();
+      } else {
+        running = true;
+        loop();
+      }
+    }
+    return false;
+  }
+}
+
+</script>
+
+<div id="p5"></div>
+<div style="visibility: hidden;"><span id="angle_slider"></span>angle</div>
+<div style="visibility: hidden;"><span id="segment_length_slider"></span>length</div>
+<div id="text">click to change colors<br>press "P" to pause/resume<br>press "S" to save current frame<br>
+inspired by
+<a href="https://twitter.com/Gelada/status/846751901756653568">Edmund Harriss</a> via <a href="https://www.youtube.com/watch?v=LqKpkdRRLZw">Numberphile</a>
+</div>
+<div id="colourloverlink"></div>
+<div id="update">
+<small>
+</small>
+</div>
