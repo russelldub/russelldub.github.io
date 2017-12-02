@@ -1,3 +1,4 @@
+- Paint dripped skulls
 - Bobbin' and Weavin' 3D
 - waterman butterfly moon (solar system poster)
 - random bezier yule tree
@@ -17,5 +18,6 @@
 - http://fivethirtyeight.com/features/we-asked-you-to-visualize-your-podcast-listening-and-wow-did-you-deliver/
 - http://arstechnica.com/gadgets/2016/12/behold-the-greatest-spirographs-in-the-world/
 - https://www.youtube.com/watch?v=LaarVR1AOvs
+- Zoom on super star of penrose
 
 
