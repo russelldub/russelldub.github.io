@@ -1,0 +1,262 @@
+---
+layout: post
+title:  "circling hexagons"
+date:   2018-01-02 15:35:00
+categories: experiments
+custom_js:
+  - p5/p5.0.5.16.min.js
+  - p5/addons/p5.dom.js
+  - local/fs.js
+---
+
+<script type="text/javascript">
+var p5c;
+var n_hexes = 12;
+
+var color_mode = 1;
+var color_mode_slider;
+
+var speed = 6.28 / 360.0 * 0.4;
+var speed_slider;
+
+var colors;
+var color_arrays = [];
+var bgc;
+var fgc;
+var palette_JSON = [];
+
+var stdWidth  = 450;
+var stdHeight = 450;
+
+var running = true;
+
+var global_rotation = 0;
+
+var outer_hex;
+
+var pgs = [];
+
+function preload() {
+  palette_JSON=loadJSON("/assets/colour_lovers_top40.json");
+}
+
+function setup() {
+  p5c = createCanvas(stdWidth, stdHeight);
+  p5c.parent("p5");
+  fs.addFullScreenControl(p5c.elt,stdWidth,stdHeight,function(w,h) {
+     newWidth = max(stdWidth, w/pixelDensity());
+     newHeight = max(stdHeight, h/pixelDensity());
+     resizeCanvas(newWidth,newHeight);
+     pgs[0] = createGraphics(newWidth,newHeight);
+     pgs[1] = createGraphics(newWidth,newHeight);
+  });
+
+  getColors();
+  frameRate(25);
+
+  color_mode_slider=createSlider(0,1,1,1);
+  color_mode_slider.parent("color_mode");
+  color_mode_slider.style.right="0px";
+  color_mode = color_mode_slider.value();
+
+  speed_slider=createSlider(-2*speed,2*speed,speed,speed/20.0);
+  speed_slider.parent("speed_slider");
+  speed_slider.style.right="0px";
+  speed = speed_slider.value();
+
+  var outer_size = 0.90*stdWidth;
+  outer_hex = new Hexagon(outer_size, outer_size/3, 0.0, 0, 1);
+
+  pgs.push(createGraphics(width,height));
+  pgs.push(createGraphics(width,height));
+}
+
+function Hexagon(_outer_size, _inner_size, _position, _idx, _layers) {
+  this.outer_size = _outer_size;
+  this.inner_size = _inner_size;
+  this.idx = _idx;
+  this.rotation = TWO_PI*this.idx/n_hexes; //TODO; actual arc length
+  this.color = colors[this.idx % colors.length];
+  this.position = _position;
+  this.children = [];
+  if(_layers > 0) { 
+    for(var i = 0; i < n_hexes; ++i) {
+      var pos = this.outer_size;
+      this.children.push(new Hexagon(this.inner_size, this.inner_size/3, pos, i, _layers-1));
+    }
+  }
+
+  this.set_position = function(depth) {
+    if(depth>0) {
+      this.rotation = (this.rotation + speed) % TWO_PI;
+      if (this.rotation < 0 ) this.rotation = this.rotation + TWO_PI;
+    }
+    var i = floor(this.rotation / (PI/3));
+    var v1x = this.outer_size * cos((i)*PI/3);
+    var v1y = this.outer_size * sin((i)*PI/3);
+    var v2x = this.outer_size * cos((i+1)*PI/3);
+    var v2y = this.outer_size * sin((i+1)*PI/3);
+    var rotation_6 = this.rotation - i*PI/3.;
+    this.x = v1x + (v2x-v1x)*rotation_6/(TWO_PI/6.);
+    this.y = v1y + (v2y-v1y)*rotation_6/(TWO_PI/6.);
+  }
+
+  this.show = function(depth, pg, colors) {
+    pg.push();
+    this.set_position(depth);
+    this.color = colors[this.idx % colors.length];
+    if(depth > 0) { pg.translate(this.x, this.y); }
+    if(this.children.length == 0) {
+      if(color_mode == 0) {
+        pg.fill(fgc);
+      } else {
+        pg.fill(this.color);
+      }
+      pg.stroke(bgc);
+      pg.strokeWeight(10);
+      pg.beginShape();
+      for(var i = 0; i < 6; ++i) {
+        var vx = this.inner_size * cos((i+1)*PI/3);
+        var vy = this.inner_size * sin((i+1)*PI/3);
+        pg.vertex(vx,vy);
+      }
+      pg.endShape(CLOSE)
+    } else {
+      for(var i = 0; i < this.children.length; ++i) {
+        this.children[i].show(depth+1,pg, colors);
+      }
+    }
+    pg.pop();
+  }
+}
+
+function draw() {
+  color_mode = color_mode_slider.value();
+  speed = speed_slider.value();
+  global_rotation = global_rotation + speed;
+  if(global_rotation > TWO_PI) global_rotation = global_rotation - TWO_PI;
+  if(global_rotation < 0) global_rotation = global_rotation + TWO_PI;
+
+  background(bgc);
+
+  for(var ip = 0 ; ip < pgs.length; ++ip) {
+    var pg = pgs[ip];
+    pg.background(bgc);
+    pg.push()
+    pg.translate(width/2,height/2);
+    pg.rotate(ip*PI);
+    outer_hex.show(0,pg, color_arrays[ip % color_arrays.length]);
+    pg.pop();
+  }
+
+  loadPixels();
+  pgs[0].loadPixels();
+  pgs[1].loadPixels();
+  var d = pixelDensity();
+  var v1x = cos(TWO_PI/6-2*global_rotation);
+  var v1y = sin(TWO_PI/6-2*global_rotation);
+  for (var x = 0; x < width; ++x) {
+    for (var y = 0; y < height; ++y) {
+      var x_corrected = x - width/2;
+      var y_corrected = height/2 - y;
+      var dot = v1x*x_corrected + v1y * y_corrected;
+      var det = v1x*y_corrected - v1y * x_corrected;
+      var angle = atan2(det, dot);
+      var pg_idx = 0;
+      if(angle < 0) {
+        pg_idx = 1;
+      }
+      for (var j = 0; j < d; ++j) {
+        for (var i = 0; i < d; ++i) {
+           var idx = 4 * ((y * d + j) * width * d + (x * d + i));
+           pixels[idx] = pgs[pg_idx].pixels[idx];
+           pixels[idx+1] = pgs[pg_idx].pixels[idx+1];
+           pixels[idx+2] = pgs[pg_idx].pixels[idx+2];
+           pixels[idx+3] = pgs[pg_idx].pixels[idx+3];
+        }
+      }
+    }
+  }
+  updatePixels();
+}
+
+function getColors() {
+  if(palette_JSON.length === 0) {
+    colors = colors_pre;
+  } else {
+    palette_keys=Object.keys(palette_JSON);
+    idxp = int(random(palette_keys.length));
+    palette = palette_JSON[palette_keys[idxp]];
+    colors = [];
+    for(var i = 0;  i < palette["colors"].length; ++i) {
+      cc = color("#"+ palette['colors'][i]);
+      cc._array[3] = 0.8;
+      colors.push(cc);
+    }
+    
+    var palette_link_div=select("#colourloverlink");
+    palette_link = palette_JSON[idxp]['url'];
+    palette_link_div.html("<a href=\"" + palette_link + "\">\"" + palette_JSON[idxp]['title'] + "\" palette</a> from <a href=\"http://www.colourlovers.com/\">colour lovers</a>");
+    
+  }
+  var idxc = int(random(colors.length));
+  bgc = colors[idxc];
+  bgc._array[3] = 1.0;
+  colors.splice(idxc,1);
+  var idxc = int(random(colors.length));
+  fgc = colors[idxc];
+  fgc._array[3] = 1.0;
+  //colors.splice(idxc,1);
+  color_arrays = [];
+  color_arrays.push(colors);
+  var colors_rotated = [];
+  for(var i = 0; i < colors.length; ++i) {
+    colors_rotated.push(colors[(i+n_hexes/2) % colors.length]);
+  }
+  color_arrays.push(colors_rotated);
+}
+
+function touchEnded() {
+   if(mouseX > 0
+      && mouseX < width
+      && mouseY > 0
+      &&mouseY<height){
+     getColors();
+     draw();
+     return false;
+   }
+}
+
+function keyReleased() {
+ if(mouseX > 0
+    && mouseX < width
+    && mouseY > 0
+    &&mouseY < height){
+    if(key === "S") {
+      saveCanvas("s"+int(random(9999)),"png");
+    }
+    if(key === "P") {
+      if(running) { 
+        running = false;
+        noLoop();
+      } else {
+        running = true;
+        loop();
+      }
+    }
+    return false;
+  }
+}
+
+</script>
+
+<div id="p5"></div>
+<div><span id="color_mode"></span>color mode</div>
+<div><span id="speed_slider"></span>speed</div>
+<div id="text">click to change colors<br>press "P" to pause/resume<br>press "S" to save current frame<br>
+inspired by <a href="http://www.dailyminimal.com/post/168646009034/no-088">daily minimal</a></div>
+<div id="colourloverlink"></div>
+<div id="update">
+<small>
+</small>
+</div>
