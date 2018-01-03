@@ -1,0 +1,244 @@
+---
+layout: post
+title:  "swirling hexagons"
+date:   2018-01-02 19:35:00
+categories: experiments
+custom_js:
+  - p5/p5.0.5.16.min.js
+  - p5/addons/p5.dom.js
+  - local/fs.js
+---
+
+<script type="text/javascript">
+var p5c;
+var n_hexes = 21;
+var n_hexes_slider;
+
+var hexes = [];
+var outer_size;
+var inner_size;
+
+var color_mode = 1;
+var color_mode_slider;
+
+var speed = 0.02;
+var speed_slider;
+
+var color_speed = 0.1;
+var color_speed_slider;
+
+var max_rotation = 6.28/2;
+var max_rotation_slider;
+
+var size_ratio = 0.4;
+var size_ratio_slider;
+
+var stroke_weight = 1.75;
+var stroke_weight_slider;
+
+var theta = 0;
+var color_offset = 0;
+
+var colors;
+var bgc;
+var fgc;
+var palette_JSON = [];
+
+var stdWidth  = 600;
+var stdHeight = 600;
+
+var running = true;
+
+var global_rotation = 0;
+
+
+function preload() {
+  palette_JSON=loadJSON("/assets/colour_lovers_top40.json");
+}
+
+function setup() {
+  p5c = createCanvas(stdWidth, stdHeight);
+  p5c.parent("p5");
+  fs.addFullScreenControl(p5c.elt,stdWidth,stdHeight,function(w,h) {
+     resizeCanvas(w,h);
+  });
+
+  getColors();
+  frameRate(25);
+
+  n_hexes_slider=createSlider(3,30,n_hexes,1);
+  n_hexes_slider.parent("n_hexes");
+  n_hexes_slider.style.right="0px";
+  n_hexes = n_hexes_slider.value();
+
+  color_mode_slider=createSlider(0,1,1,1);
+  color_mode_slider.parent("color_mode");
+  color_mode_slider.style.right="0px";
+  color_mode = color_mode_slider.value();
+
+  speed_slider=createSlider(0,2*speed,speed,speed/20.0);
+  speed_slider.parent("speed_slider");
+  speed_slider.style.right="0px";
+  speed = speed_slider.value();
+
+  color_speed_slider=createSlider(0,5,color_speed,0.1);
+  color_speed_slider.parent("color_speed");
+  color_speed_slider.style.right="0px";
+  color_speed = color_speed_slider.value();
+
+  size_ratio_slider=createSlider(0.2,0.8,size_ratio,(0.8-0.2)/100);
+  size_ratio_slider.parent("size_ratio");
+  size_ratio_slider.style.right="0px";
+  size_ratio = size_ratio_slider.value();
+
+  stroke_weight_slider=createSlider(0,3.0,stroke_weight,3.0/100);
+  stroke_weight_slider.parent("stroke_weight");
+  stroke_weight_slider.style.right="0px";
+  stroke_weight = stroke_weight_slider.value();
+
+  max_rotation_slider=createSlider(TWO_PI/6,2*TWO_PI,max_rotation,TWO_PI/1000);
+  max_rotation_slider.parent("max_rotation");
+  max_rotation_slider.style.right="0px";
+  max_rotation = max_rotation_slider.value();
+
+  outer_size = 0.45*stdHeight;
+  inner_size = size_ratio*outer_size;
+}
+
+function Hexagon(_idx) {
+  this.idx = _idx;
+  this.rotation = global_rotation*this.idx/(n_hexes-1);
+  this.size = (inner_size - outer_size) * this.idx/(n_hexes-1) + outer_size;
+
+  this.show = function() {
+    this.rotation = global_rotation*this.idx/(n_hexes-1);
+    this.size = (inner_size - outer_size) * this.idx/(n_hexes-1) + outer_size;
+    this.size = this.size*height/stdHeight;
+    this.color = colors[(this.idx + floor(color_offset)) % colors.length];
+    if(color_mode == 0) {
+      fill(fgc);
+    } else {
+      fill(this.color);
+    }
+    stroke("white");
+    strokeWeight(stroke_weight*height/stdHeight);
+    push();
+    rotate(this.rotation);
+    beginShape();
+    for(var i = 0; i < 6; ++i) {
+      var vx = this.size * cos((i+1)*PI/3);
+      var vy = this.size * sin((i+1)*PI/3);
+      vertex(vx,vy);
+    }
+    endShape(CLOSE)
+    pop();
+  }
+}
+
+function draw() {
+  color_mode = color_mode_slider.value();
+  speed = speed_slider.value();
+  color_speed = color_speed_slider.value();
+  color_offset = color_offset + color_speed/10;
+
+  size_ratio = size_ratio_slider.value();
+  inner_size = size_ratio * outer_size;
+  n_hexes = n_hexes_slider.value();
+  max_rotation = max_rotation_slider.value();
+  stroke_weight = stroke_weight_slider.value();
+  
+  theta = theta + speed;
+  if(theta > TWO_PI) { theta = theta - TWO_PI; }
+  global_rotation = max_rotation*sin(theta);
+
+  background(bgc);
+
+  push()
+  translate(width/2,height/2);
+  rotate(TWO_PI/12);
+  for(var i = 0; i < n_hexes; ++i) {
+    if(i == hexes.length) {
+      hexes.push(new Hexagon(i));
+    }
+    hexes[i].show();
+  }
+}
+
+function getColors() {
+  if(palette_JSON.length === 0) {
+    colors = colors_pre;
+  } else {
+    palette_keys=Object.keys(palette_JSON);
+    idxp = int(random(palette_keys.length));
+    palette = palette_JSON[palette_keys[idxp]];
+    colors = [];
+    for(var i = 0;  i < palette["colors"].length; ++i) {
+      cc = color("#"+ palette['colors'][i]);
+      cc._array[3] = 1.0;
+      colors.push(cc);
+    }
+    
+    var palette_link_div=select("#colourloverlink");
+    palette_link = palette_JSON[idxp]['url'];
+    palette_link_div.html("<a href=\"" + palette_link + "\">\"" + palette_JSON[idxp]['title'] + "\" palette</a> from <a href=\"http://www.colourlovers.com/\">colour lovers</a>");
+    
+  }
+  var idxc = int(random(colors.length));
+  bgc = colors[idxc];
+  bgc._array[3] = 1.0;
+  colors.splice(idxc,1);
+  var idxc = int(random(colors.length));
+  fgc = colors[idxc];
+  fgc._array[3] = 1.0;
+  //colors.splice(idxc,1);
+}
+
+function touchEnded() {
+   if(mouseX > 0
+      && mouseX < width
+      && mouseY > 0
+      &&mouseY<height){
+     getColors();
+     draw();
+     return false;
+   }
+}
+
+function keyReleased() {
+ if(mouseX > 0
+    && mouseX < width
+    && mouseY > 0
+    &&mouseY < height){
+    if(key === "S") {
+      saveCanvas("s"+int(random(9999)),"png");
+    }
+    if(key === "P") {
+      if(running) { 
+        running = false;
+        noLoop();
+      } else {
+        running = true;
+        loop();
+      }
+    }
+    return false;
+  }
+}
+
+</script>
+
+<div id="p5"></div>
+<div><span id="color_mode"></span>color mode</div>
+<div><span id="speed_slider"></span>rotation speed</div>
+<div><span id="color_speed"></span>color speed</div>
+<div><span id="n_hexes"></span># of hexagons</div>
+<div><span id="size_ratio"></span>size ratio</div>
+<div><span id="max_rotation"></span>maximum rotation</div>
+<div><span id="stroke_weight"></span>stroke weight</div>
+<div id="text">click to change colors<br>press "P" to pause/resume<br>press "S" to save current frame<br>
+inspired by <a href="http://www.dailyminimal.com/post/168646009034/no-088">daily minimal</a></div>
+<div id="colourloverlink"></div>
+<div id="update">
+<small>
+</small>
+</div>
