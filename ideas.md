@@ -1,10 +1,17 @@
 - water chime fountain
+- Petals, raindrop, heart animation
 - Paint dripped skulls
+- configurable neon text (colors, shadow, num layers, font): https://www.youtube.com/watch?v=fE-gKcJC8M8
 - Bobbin' and Weavin' 3D
 - waterman butterfly moon (solar system poster)
 - random bezier yule tree
+- triple eyes photos from webcam with OpenCV
+- 3D model of glass butterfly
 - Murmurations
 - Painterly effects
+- painted waves : https://www.youtube.com/watch?v=I4yuiN27W14
+- generative modeling in blender: https://www.youtube.com/watch?v=qC5eX_WZU2E
+- auto shiny photos (gold shoe demo from logos by nick)
 - D3 Globe Projections
 - Animal models (3D fish scans)
 - argyle dance party better (animate transition / dotted lines)
