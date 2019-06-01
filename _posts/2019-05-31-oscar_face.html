@@ -1,0 +1,177 @@
+---
+layout: post
+title:  "oscar"
+date:   2019-05-31 22:59:00
+categories: experiments
+custom_js:
+  - p5/p5.min.js
+  - p5/addons/p5.dom.js
+  - local/fs.js
+---
+
+<div>
+<div id="canvas" style="background-color:lightblue; height:600px; width:900px">
+<object id="svg-object" data="/assets/oscar_face.svg" type="image/svg+xml"></object>
+</div>
+</div>
+
+<script type="application/javascript">
+
+var stdWidth = 900;
+var stdHeight = 600;
+
+var running = false;
+var colors;
+var bgc;
+var fgc;
+var palette_JSON = [];
+
+var svg;
+var gradient;
+var stops;
+var eyeL;
+var eyeR;
+var bgElem;
+var outlineFill;
+var drawWidth=100;
+var drawHeight=160;
+
+function preload() {
+  palette_JSON=loadJSON("/assets/colour_lovers_top40.json");
+}
+
+function setup() {
+  noCanvas();
+
+  var svgObject = document.getElementById('svg-object').contentDocument;
+  svg = svgObject.getElementById('svg8');
+//  svg.onclick = mousePress;
+  svg.addEventListener("click", mousePress);
+  svg.setAttributeNS(null,'width',stdWidth.toString());
+  svg.setAttributeNS(null,'height',stdHeight.toString());
+  gradient = svg.getElementById('linearGradient7838');
+  stops = gradient.getElementsByTagName('stop');
+  outlineFill = svg.getElementById('outlinefill');
+
+  eyeL = svg.getElementById('eyeL');
+  eyeR = svg.getElementById('eyeR');
+
+  //bgElem = svg.getElementById('bg');
+  fs.addFullScreenControl(document.getElementById('canvas'),stdWidth,stdHeight, function(w,h) {
+     resizeCanvas(w,h);
+     svg.setAttributeNS(null,'width',w.toString());
+     svg.setAttributeNS(null,'height',h.toString());
+  });
+  getColors();
+}
+
+function setGradColors(stops,c1,c2) {
+    stops[0].setAttributeNS(null, 'stop-color', c1);
+    stops[1].setAttributeNS(null, 'stop-color', c2);
+}
+
+function setEyeColor(eyes,c) {
+    eyes[0].setAttributeNS(null, 'fill', c);
+    eyes[1].setAttributeNS(null, 'fill', c);
+}
+
+function setBgColor(c) {
+  var divObject = document.getElementById('canvas');
+  divObject.style.backgroundColor = c;
+}
+
+function setOutlineColor(outlineFill,c) {
+    stop = outlineFill.getElementsByTagName('stop');
+    stop[0].setAttributeNS(null, 'stop-color', c);
+}
+
+
+function draw() {
+  frameRate(0.5);
+  //if(running) colors = shuffle(colors);
+  if(running) getColors();
+  setGradColors(stops,colors[0], colors[1]);
+  setOutlineColor(outlineFill, colors[2]);
+  setEyeColor([eyeL,eyeR], colors[3]);
+  setBgColor(bgc);
+}
+
+function getColors() {
+  if(palette_JSON.length === 0) {
+    colors = colors_pre;
+  } else {
+    palette_keys=Object.keys(palette_JSON);
+    idxp = int(random(palette_keys.length));
+    palette = palette_JSON[palette_keys[idxp]];
+    colors = [];
+    for(var i = 0;  i < palette["colors"].length; ++i) {
+      //cc = color("#"+ palette['colors'][i]);
+      cc = "#"+ palette['colors'][i];
+      colors.push(cc);
+    }
+    
+    var palette_link_div=select("#colourloverlink");
+    palette_link = palette_JSON[idxp]['url'];
+    palette_link_div.html("<a href=\"" + palette_link + "\">\"" + palette_JSON[idxp]['title'] + "\" palette</a> from <a href=\"http://www.colourlovers.com/\">colour lovers</a>");
+    
+  }
+  var idxc = int(random(colors.length));
+  bgc = colors[idxc];
+  //bgc._array[3] = 1.0;
+  colors.splice(idxc,1);
+  colors = shuffle(colors);
+  //var idxc = int(random(colors.length));
+  //fgc = colors[idxc];
+  //fgc._array[3] = 1.0;
+  //colors.splice(idxc,1);
+}
+
+function shuffle(array) {
+  var currentIndex = array.length, temporaryValue, randomIndex;
+
+  // While there remain elements to shuffle...
+  while (0 !== currentIndex) {
+
+    // Pick a remaining element...
+    randomIndex = Math.floor(Math.random() * currentIndex);
+    currentIndex -= 1;
+
+    // And swap it with the current element.
+    temporaryValue = array[currentIndex];
+    array[currentIndex] = array[randomIndex];
+    array[randomIndex] = temporaryValue;
+  }
+  return array;
+}
+
+
+function mousePress() {
+   if(!running) {
+     getColors();
+   }
+   draw();
+}
+
+function keyTyped() {
+  if(key === "S") {
+    saveCanvas("s"+int(random(9999)),"png");
+  }
+  if(key === "p") {
+    if(running) {
+      running = false;
+    } else {
+      running = true;
+    }
+  }
+}
+
+</script>
+
+<div id="p5"></div>
+<div id="text">click to to change colors</br>
+<!-- type "S" to save</br>
+	type "p" to pause</br> -->
+inspired by <a href="https://oscar.whiteswords.net/">Oscar</a><br/>
+line art tutorial: <a href="https://youtu.be/wiqUrzzHszI">logos by nick<a/></div>
+<div id="colourloverlink"></div>
+<div id="update"></div>
