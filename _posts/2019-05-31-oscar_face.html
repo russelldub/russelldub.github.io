@@ -10,7 +10,7 @@ custom_js:
 ---
 
 <div>
-<div id="canvas" style="background-color:lightblue; height:600px; width:900px">
+<div id="canvas" style="height:600px; width:900px; visibility:hidden;">
 <object id="svg-object" data="/assets/oscar_face.svg" type="image/svg+xml"></object>
 </div>
 </div>
@@ -45,7 +45,6 @@ function setup() {
 
   var svgObject = document.getElementById('svg-object').contentDocument;
   svg = svgObject.getElementById('svg8');
-//  svg.onclick = mousePress;
   svg.addEventListener("click", mousePress);
   svg.setAttributeNS(null,'width',stdWidth.toString());
   svg.setAttributeNS(null,'height',stdHeight.toString());
@@ -63,6 +62,8 @@ function setup() {
      svg.setAttributeNS(null,'height',h.toString());
   });
   getColors();
+  draw();
+  document.getElementById('canvas').style.visibility='visible';
 }
 
 function setGradColors(stops,c1,c2) {
@@ -94,6 +95,7 @@ function draw() {
   setOutlineColor(outlineFill, colors[2]);
   setEyeColor([eyeL,eyeR], colors[3]);
   setBgColor(bgc);
+  document.getElementById('canvas').style.visible=true;
 }
 
 function getColors() {
