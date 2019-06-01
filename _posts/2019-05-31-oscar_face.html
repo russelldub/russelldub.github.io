@@ -20,7 +20,7 @@ custom_js:
 var stdWidth = 900;
 var stdHeight = 600;
 
-var running = false;
+var running = true;
 var colors;
 var bgc;
 var fgc;
@@ -29,6 +29,7 @@ var palette_JSON = [];
 var svg;
 var gradient;
 var stops;
+var stopOffsets = [0.2, 0.4, 0.6, 0.8];
 var eyeL;
 var eyeR;
 var bgElem;
@@ -46,6 +47,7 @@ function setup() {
   var svgObject = document.getElementById('svg-object').contentDocument;
   svg = svgObject.getElementById('svg8');
   svg.addEventListener("click", mousePress);
+  svg.addEventListener("keydown", keyDown);
   svg.setAttributeNS(null,'width',stdWidth.toString());
   svg.setAttributeNS(null,'height',stdHeight.toString());
   gradient = svg.getElementById('linearGradient7838');
@@ -69,6 +71,10 @@ function setup() {
 function setGradColors(stops,c1,c2) {
     stops[0].setAttributeNS(null, 'stop-color', c1);
     stops[1].setAttributeNS(null, 'stop-color', c2);
+    stops[2].setAttributeNS(null, 'stop-color', c1);
+    stops[3].setAttributeNS(null, 'stop-color', c2);
+    stops[4].setAttributeNS(null, 'stop-color', c1);
+    stops[5].setAttributeNS(null, 'stop-color', c2);
 }
 
 function setEyeColor(eyes,c) {
@@ -88,9 +94,16 @@ function setOutlineColor(outlineFill,c) {
 
 
 function draw() {
-  frameRate(0.5);
-  //if(running) colors = shuffle(colors);
-  if(running) getColors();
+  frameRate(30);
+  if(running) {
+      for (var i = 0; i < stopOffsets.length; ++i) {
+         stopOffsets[i] += 0.0015;
+         if(stopOffsets[i] > 0.4 + 0.2*i) {
+             stopOffsets[i] -= 0.4
+         }
+         stops[i].setAttributeNS(null, 'offset', stopOffsets[i].toString());
+      }
+  }
   setGradColors(stops,colors[0], colors[1]);
   setOutlineColor(outlineFill, colors[2]);
   setEyeColor([eyeL,eyeR], colors[3]);
@@ -148,32 +161,33 @@ function shuffle(array) {
 
 
 function mousePress() {
-   if(!running) {
-     getColors();
-   }
-   draw();
+   getColors();
 }
 
 function keyTyped() {
-  if(key === "S") {
-    saveCanvas("s"+int(random(9999)),"png");
-  }
   if(key === "p") {
-    if(running) {
-      running = false;
-    } else {
-      running = true;
-    }
+    running = !running;
+  }
+}
+
+function keyDown(e) {
+  if(e.keyCode == 80) {
+    running = !running;
   }
 }
 
 </script>
 
 <div id="p5"></div>
-<div id="text">click to to change colors</br>
-<!-- type "S" to save</br>
-	type "p" to pause</br> -->
+<div id="text">
+click to to change colors</br>
+type "p" to pause</br>
+<!-- type "S" to save</br> -->
 inspired by <a href="https://oscar.whiteswords.net/">Oscar</a><br/>
-line art tutorial: <a href="https://youtu.be/wiqUrzzHszI">logos by nick<a/></div>
+line art tutorial: <a href="https://youtu.be/wiqUrzzHszI">logos by nick</a></div>
 <div id="colourloverlink"></div>
-<div id="update"></div>
+<div id="update">
+<small>
+2019-06-01: animated gradient
+</small>
+</div>
