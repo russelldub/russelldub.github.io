@@ -16,11 +16,14 @@ custom_js:
 </div>
 
 <script type="application/javascript">
+//SVG + JS Info
+//http://www.petercollingridge.co.uk/tutorials/svg/interactive/javascript/0
 
 var stdWidth = 900;
 var stdHeight = 600;
 
 var running = true;
+var gradient = true;
 var colors;
 var bgc;
 var fgc;
@@ -104,11 +107,14 @@ function draw() {
          stops[i].setAttributeNS(null, 'offset', stopOffsets[i].toString());
       }
   }
-  setGradColors(stops,colors[0], colors[1]);
+  if(gradient) {
+    setGradColors(stops,colors[0], colors[1]);
+  } else {
+    setGradColors(stops,colors[0], colors[0]);
+  }
   setOutlineColor(outlineFill, colors[2]);
   setEyeColor([eyeL,eyeR], colors[3]);
   setBgColor(bgc);
-  document.getElementById('canvas').style.visible=true;
 }
 
 function getColors() {
@@ -124,21 +130,15 @@ function getColors() {
       cc = "#"+ palette['colors'][i];
       colors.push(cc);
     }
-    
+
     var palette_link_div=select("#colourloverlink");
     palette_link = palette_JSON[idxp]['url'];
     palette_link_div.html("<a href=\"" + palette_link + "\">\"" + palette_JSON[idxp]['title'] + "\" palette</a> from <a href=\"http://www.colourlovers.com/\">colour lovers</a>");
-    
   }
   var idxc = int(random(colors.length));
   bgc = colors[idxc];
-  //bgc._array[3] = 1.0;
   colors.splice(idxc,1);
   colors = shuffle(colors);
-  //var idxc = int(random(colors.length));
-  //fgc = colors[idxc];
-  //fgc._array[3] = 1.0;
-  //colors.splice(idxc,1);
 }
 
 function shuffle(array) {
@@ -168,26 +168,33 @@ function keyTyped() {
   if(key === "p") {
     running = !running;
   }
+  if(key === "g") {
+    gradient = !gradient;
+  }
 }
 
 function keyDown(e) {
   if(e.keyCode == 80) {
     running = !running;
   }
+  if(e.keyCode == 71) {
+    gradient = !gradient;
+  }
 }
-
 </script>
 
 <div id="p5"></div>
 <div id="text">
 click to to change colors</br>
 type "p" to pause</br>
+type "g" to toggle gradient on/off</br>
 <!-- type "S" to save</br> -->
 inspired by <a href="https://oscar.whiteswords.net/">Oscar</a><br/>
 line art tutorial: <a href="https://youtu.be/wiqUrzzHszI">logos by nick</a></div>
 <div id="colourloverlink"></div>
 <div id="update">
 <small>
-2019-06-01: animated gradient
+2019-06-01: animated gradient <br/>
+2019-06-02: toggle gradient
 </small>
 </div>
