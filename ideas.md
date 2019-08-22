@@ -1,4 +1,6 @@
 - water chime fountain
+- makehuman + GA optimization + depth map / face model
+- bonsai managerie / arboretum (particle system for leave w/ weight painting)
 - Petals, raindrop, heart animation
 - Paint dripped skulls
 - configurable neon text (colors, shadow, num layers, font): https://www.youtube.com/watch?v=fE-gKcJC8M8
@@ -27,5 +29,6 @@
 - http://arstechnica.com/gadgets/2016/12/behold-the-greatest-spirographs-in-the-world/
 - https://www.youtube.com/watch?v=LaarVR1AOvs
 - Zoom on super star of penrose
+- whiteswords logo (on gold field?  multiple swords?)
 
 
