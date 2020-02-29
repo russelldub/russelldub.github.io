@@ -6,6 +6,7 @@ categories: experiments
 custom_js:
   - p5/p5.0.5.16.min.js
   - p5/addons/p5.dom.js
+  - dat.gui/dat.gui.min-0.7.6.js
   - local/fs.js
 ---
 
@@ -26,9 +27,19 @@ var points;
 var shapes = [];
 var draw_scale = 1.0;
 
+function DatConf() {
+  this.mode = "hearts";
+  this.foreground = "#000000";
+  this.background = "#000000";
+}
+
+var datconf;
+
+
 function preload() {
   palette_JSON=loadJSON("/assets/colour_lovers_top40.json");
   points=loadJSON("/assets/oscar_dots2.json");
+  datconf = new DatConf();
 }
 
 function setup() {
@@ -56,13 +67,24 @@ function setup() {
   }
   var centerX = (maxX - minX)/2+minX;
   var centerY = (maxY - minY)/2+minY;
-  console.log(minX,minY);
 
   for(i in  points) {
-    shapes.push(new Shape((points[i].cx-centerX)/(maxY-minY)*height, (points[i].cy-centerY)/(maxY-minY)*height, points[i].r/maxR*10));
+    shapes.push(new Shape((points[i].cx-centerX)/(maxY-minY)*height*0.98, (points[i].cy-centerY)/(maxY-minY)*height*0.98, points[i].r/maxR*10));
   }
+
+
+  var gui = new dat.GUI({ autoPlace: false, closed: false, hideable: true, hidden:true});
+  gui.add(datconf, 'mode', ['hearts','circles','stars']);
+  gui.addColor(datconf,'foreground').listen();
+  gui.addColor(datconf,'background').listen();
+
+  //document.getElementById('dat.gui').appendChild(gui.domElement);
+  //document.getElementById('dat.gui').append(gui.domElement);
+  document.getElementsByClassName('post-content')[0].prepend(gui.domElement);
+  gui.hide();
 }
 
+//https://editor.p5js.org/Mithru/sketches/Hk1N1mMQg
 function heart(x, y, size) {
   beginShape();
   vertex(x, y);
@@ -75,6 +97,40 @@ function circle(x, y, size) {
   ellipse(x,y,size,size);
 }
 
+//https://editor.p5js.org/son/sketches/SkJJxG2Cm
+function flower(x,y,size) {
+  push();
+  translate(x, y);
+  noStroke();
+
+  rotate(PI / 7);
+  for (var i = 0; i < 7; i++) {
+    ellipse(0, size*0.35, size*0.5, size*0.65)
+    rotate(PI * 2 / 7);
+  }
+  //fill(bgc);
+  ellipse(0,0,size*0.2,size*0.2);
+  pop();
+}
+
+//https://p5js.org/examples/form-star.html
+//star(0, 0, 30, 70, 5) // "standard" 5-pointed stard
+function star(x, y, radius1, radius2, npoints) {
+  let angle = TWO_PI / npoints;
+  let halfAngle = angle / 2.0;
+  beginShape();
+  for (let a = 0; a < TWO_PI; a += angle) {
+    let sx = x + cos(a) * radius2;
+    let sy = y + sin(a) * radius2;
+    vertex(sx, sy);
+    sx = x + cos(a + halfAngle) * radius1;
+    sy = y + sin(a + halfAngle) * radius1;
+    vertex(sx, sy);
+  }
+  endShape(CLOSE);
+}
+
+
 function Shape(_cx,_cy,_r) {
   this.cx = _cx;
   this.cy = _cy;
@@ -86,12 +142,21 @@ function Shape(_cx,_cy,_r) {
     noStroke();
     //fill(colors[this.color_idx]);
     fill(fgc);
-    heart(this.cx*draw_scale,this.cy*draw_scale,this.r*draw_scale);
+    if(datconf.mode == "hearts") {
+      heart(this.cx*draw_scale,this.cy*draw_scale,this.r*draw_scale);
+    } else if(datconf.mode == "circles") {
+      circle(this.cx*draw_scale,this.cy*draw_scale,this.r*draw_scale*1.25);
+    } else { //starse
+      star(this.cx*draw_scale,this.cy*draw_scale,this.r*draw_scale*3/7,this.r*draw_scale,5);
+    }
+    //flower(this.cx*draw_scale,this.cy*draw_scale,this.r*draw_scale);
     //console.log(this.cx, this.cy);
   }
 }
 
 function draw() {
+  fgc = color(datconf.foreground);
+  bgc = color(datconf.background);
   background(bgc);
   //translate(0, height);
   //translate(width/2, height/2);
@@ -140,6 +205,8 @@ function getColors() {
   //fgc = colors[idxc];
   //fgc._array[3] = 1.0;
   //colors.splice(idxc,1);
+  datconf.foreground = fgc.levels;
+  datconf.background = bgc.levels;
 }
 
 function touchEnded() {
@@ -177,12 +244,18 @@ function keyReleased() {
 </script>
 
 <div id="p5"></div>
-<div id="text">click to change colors
-	<!--	<br>press "P" to pause/resume -->
-	<br>press "S" to save current frame<br>
-inspired by <a href="http://oscar.whiteswords.net">oscar</a></div>
+<div id="dat.gui"</div>
+<div id="text">click to change colors<br>
+<!--	<br>press "P" to pause/resume -->
+press "S" to save current frame<br>
+press "h" to open controls<br>
+inspired by <a href="http://oscar.whiteswords.net">oscar</a><br>
+points generated with <a href="https://www.evilmadscientist.com/2012/stipplegen2/">StippleGen2</a><br>
+p5js shapes taken from <a href="https://p5js.org/examples/form-star.html">here</a> and <a href="https://editor.p5js.org/Mithru/sketches/Hk1N1mMQg">here</a>
+</div>
 <div id="colourloverlink"></div>
 <div id="update">
 <small>
+2020-02-28: Added info links and controls
 </small>
 </div>
