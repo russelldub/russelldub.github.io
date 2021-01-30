@@ -1,0 +1,262 @@
+---
+layout: post
+title:  "oscar hearts 2"
+date:   2021-01-28 09:34:00
+categories: experiments
+custom_js:
+  - p5/p5.0.5.16.min.js
+  - p5/addons/p5.dom.js
+  - dat.gui/dat.gui.min-0.7.6.js
+  - local/fs.js
+---
+
+<script type="text/javascript">
+var p5c;
+
+var colors;
+var bgc;
+var fgc;
+var palette_JSON = [];
+
+var stdWidth  = 600;
+var stdHeight = 600;
+
+var running = true;
+
+var points;
+var shapes = [];
+var draw_scale = 1.0;
+
+function DatConf() {
+  this.mode = "circles";
+  this.foreground = "#000000";
+  this.background = "#000000";
+}
+
+var datconf;
+
+
+function preload() {
+  palette_JSON=loadJSON("/assets/colour_lovers_top40.json");
+  points=loadJSON("/assets/oscar_dots3.json");
+  datconf = new DatConf();
+}
+
+function setup() {
+  p5c = createCanvas(stdWidth, stdHeight);
+  p5c.parent("p5");
+  fs.addFullScreenControl(p5c.elt,stdWidth,stdHeight,function(w,h) {
+     resizeCanvas(w,h);
+     draw_scale = height/stdHeight;
+  });
+
+  getColors();
+  frameRate(25);
+
+  var minX = 10000;
+  var minY = 10000;
+  var maxX = 0;
+  var maxY = 0;
+  var maxR = 0;
+  for(i in  points) {
+    maxR = max(maxR, points[i].r);
+    maxX = max(maxX, points[i].cx);
+    maxY = max(maxY, points[i].cy);
+    minX = min(minX, points[i].cx);
+    minY = min(minY, points[i].cy);
+  }
+  var centerX = (maxX - minX)/2+minX;
+  var centerY = (maxY - minY)/2+minY;
+
+  for(i in  points) {
+    shapes.push(new Shape((points[i].cx-centerX)/(maxY-minY)*height*0.98, (points[i].cy-centerY)/(maxY-minY)*height*0.98, points[i].r/maxR*10));
+  }
+
+
+  var gui = new dat.GUI({ autoPlace: false, closed: false, hideable: true, hidden:true});
+  gui.add(datconf, 'mode', ['hearts','circles','stars', 'flowers']);
+  gui.addColor(datconf,'foreground').listen();
+  gui.addColor(datconf,'background').listen();
+
+  //document.getElementById('dat.gui').appendChild(gui.domElement);
+  //document.getElementById('dat.gui').append(gui.domElement);
+  document.getElementsByClassName('post-content')[0].prepend(gui.domElement);
+  gui.hide();
+}
+
+//https://editor.p5js.org/Mithru/sketches/Hk1N1mMQg
+function heart(x, y, size) {
+  beginShape();
+  vertex(x, y);
+  bezierVertex(x - size / 2, y - size / 2, x - size, y + size / 3, x, y + size);
+  bezierVertex(x + size, y + size / 3, x + size / 2, y - size / 2, x, y);
+  endShape(CLOSE);
+}
+
+function circle(x, y, size) {
+  ellipse(x,y,size,size);
+}
+
+//https://editor.p5js.org/son/sketches/SkJJxG2Cm
+function flower(x,y,size) {
+  push();
+  translate(x, y);
+  noStroke();
+
+  rotate(PI / 7);
+  for (var i = 0; i < 7; i++) {
+    ellipse(0, size*0.35, size*0.5, size*0.65)
+    rotate(PI * 2 / 7);
+  }
+  //fill(bgc);
+  ellipse(0,0,size*0.2,size*0.2);
+  pop();
+}
+
+//https://p5js.org/examples/form-star.html
+//star(0, 0, 30, 70, 5) // "standard" 5-pointed stard
+function star(x, y, radius1, radius2, npoints) {
+  let angle = TWO_PI / npoints;
+  let halfAngle = angle / 2.0;
+  beginShape();
+  for (let a = 0; a < TWO_PI; a += angle) {
+    let sx = x + cos(a) * radius2;
+    let sy = y + sin(a) * radius2;
+    vertex(sx, sy);
+    sx = x + cos(a + halfAngle) * radius1;
+    sy = y + sin(a + halfAngle) * radius1;
+    vertex(sx, sy);
+  }
+  endShape(CLOSE);
+}
+
+
+function Shape(_cx,_cy,_r) {
+  this.cx = _cx;
+  this.cy = _cy;
+  this.r = _r;
+  //this.color_idx = int(random(3));
+  //fgc = colors[idxc];
+
+  this.show = function() {
+    noStroke();
+    //fill(colors[this.color_idx]);
+    fill(fgc);
+    if(datconf.mode == "hearts") {
+      heart(this.cx*draw_scale,this.cy*draw_scale,this.r*draw_scale);
+    } else if(datconf.mode == "circles") {
+      circle(this.cx*draw_scale,this.cy*draw_scale,this.r*draw_scale*1.25);
+    } else if(datconf.mode == "stars") {
+      star(this.cx*draw_scale,this.cy*draw_scale,this.r*draw_scale*3/7,this.r*draw_scale,5);
+    } else { 
+      flower(this.cx*draw_scale,this.cy*draw_scale,this.r*draw_scale);
+    }	      
+    //console.log(this.cx, this.cy);
+  }
+}
+
+function draw() {
+  fgc = color(datconf.foreground);
+  bgc = color(datconf.background);
+  //bgc = "#FFFFFF"
+  background(bgc);
+  //translate(0, height);
+  //translate(width/2, height/2);
+  push();
+  translate(width/2, height/2);
+  for(var i = 0; i < shapes.length; ++i) {
+    shapes[i].show();
+  }
+  pop();
+}
+
+function getColors() {
+  if(palette_JSON.length === 0) {
+    colors = colors_pre;
+  } else {
+    palette_keys=Object.keys(palette_JSON);
+    idxp = int(random(palette_keys.length));
+    palette = palette_JSON[palette_keys[idxp]];
+    colors = [];
+    var maxBright=0;
+    var minBright=255;
+    for(var i = 0;  i < palette["colors"].length; ++i) {
+      cc = color("#"+ palette['colors'][i]);
+      cc._array[3] = 1.0;
+      colors.push(cc);
+      if( brightness(cc) > maxBright ){
+        maxBright = brightness(cc);
+	bgc = cc;
+      }
+      if( brightness(cc) < minBright ){
+        minBright = brightness(cc);
+	fgc = cc;
+      }
+    }
+    
+    var palette_link_div=select("#colourloverlink");
+    palette_link = palette_JSON[idxp]['url'];
+    palette_link_div.html("<a href=\"" + palette_link + "\">\"" + palette_JSON[idxp]['title'] + "\" palette</a> from <a href=\"http://www.colourlovers.com/\">colour lovers</a>");
+    
+  }
+  //var idxc = int(random(colors.length));
+  //bgc = colors[idxc];
+  //bgc._array[3] = 1.0;
+  //colors.splice(idxc,1);
+  //var idxc = int(random(colors.length));
+  //fgc = colors[idxc];
+  //fgc._array[3] = 1.0;
+  //colors.splice(idxc,1);
+  datconf.foreground = fgc.levels;
+  datconf.background = bgc.levels;
+}
+
+function touchEnded() {
+   if(mouseX > 0
+      && mouseX < width
+      && mouseY > 0
+      &&mouseY<height){
+     getColors();
+     draw();
+     return false;
+   }
+}
+
+function keyReleased() {
+ if(mouseX > 0
+    && mouseX < width
+    && mouseY > 0
+    &&mouseY < height){
+    if(key === "S") {
+      saveCanvas("s"+int(random(9999)),"png");
+    }
+    if(key === "P") {
+      if(running) { 
+        running = false;
+        noLoop();
+      } else {
+        running = true;
+        loop();
+      }
+    }
+    return false;
+  }
+}
+
+</script>
+
+<div id="p5"></div>
+<div id="dat.gui"</div>
+<div id="text">click to change colors<br>
+<!--	<br>press "P" to pause/resume -->
+press "S" to save current frame<br>
+press "h" to open controls<br>
+inspired by <a href="http://oscar.whiteswords.net">oscar</a><br>
+points generated with <a href="https://www.evilmadscientist.com/2012/stipplegen2/">StippleGen2</a><br>
+p5js shapes taken from <a href="https://p5js.org/examples/form-star.html">here</a> and <a href="https://editor.p5js.org/Mithru/sketches/Hk1N1mMQg">here</a>
+</div>
+<div id="colourloverlink"></div>
+<div id="update">
+<small>
+</small>
+</div>
