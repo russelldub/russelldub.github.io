@@ -1,4 +1,5 @@
 - water chime fountain
+- bezier pinstriping (lateral symmetry / thickness based on curvature?)
 - makehuman + GA optimization + depth map / face model
 - bonsai managerie / arboretum (particle system for leave w/ weight painting)
 - Petals, raindrop, heart animation
